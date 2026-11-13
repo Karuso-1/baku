@@ -2,27 +2,23 @@
 
 Web instalable (PWA) para Android. Sin servidor, sin cuentas: los datos se guardan en el navegador del móvil (IndexedDB).
 
-## Qué hay en esta fase
-- Bienvenida, test de 4 pasos y plan (Mifflin-St Jeor × actividad − déficit, macros y mínimo de 1.500 kcal).
-- Hoy: cuenco animado, tubos de macros, peso de partida y estado vacío del primer día.
-- Perfil básico: plan, rehacer el test y borrar datos.
-- Progreso, Menús y Despensa: pantalla "Lo estoy cocinando" (llegan en las siguientes fases).
-- Funciona sin conexión e instalable (manifest + service worker).
-- Logo provisional: la palabra "baku" en Uncut Sans.
+## Qué hace
+- Bienvenida, test de 4 pasos y plan (Mifflin-St Jeor × actividad − déficit, macros, mínimo 1.500 kcal).
+- Hoy: cuenco animado con lo comido, tubos de macros, comidas del día (pendiente/hecha), racha, peso, foto semanal y media de la semana.
+- Progreso: gráfica con proyección, anotar peso (recalcula el plan), fotos semanales (frontal, lateral, trasera) y comparar (lado a lado o deslizar, zoom, guardar imagen).
+- Menús: semana, día por comidas, añadir platos, cambiar, rellenar día/semana con propuesta antes de aplicar, copiar día y repetir semana.
+- Despensa: recetas (con foto), alimentos por categorías con me gusta/oculto, ficha con raciones, búsqueda en Open Food Facts, escáner de códigos de barras, alta manual y "Llena tu despensa".
+- Perfil: foto, plan, datos editables, pausar el plan, fondo (paletas o foto), copia de seguridad y restaurar.
+- Objetivo alcanzado: pasar a mantenimiento o nuevo objetivo.
+- Sin conexión e instalable (manifest + service worker). Logo provisional.
 
 ## Estructura
-- `index.html`: página única, fondo y filtro de cristal.
-- `css/app.css`: estilos (paleta Nori, Liquid Glass).
-- `js/app.js`: arranque y rutas (#/hoy, #/test/1…).
-- `js/db.js`: base de datos local.
-- `js/plan.js`: cálculo del plan y formato de números.
-- `js/ui.js`: iconos, cuenco, tubos, gotas, regla y barra inferior.
-- `js/screens/`: una pantalla por archivo.
-- `sw.js`: copia sin conexión. **Sube `VERSION` en cada publicación.**
-
-## Probar en el PC
-Necesita un servidor (no vale abrir el archivo con doble clic). En esta carpeta:
-`python -m http.server 8000` y abre http://localhost:8000
+- `index.html`, `css/app.css`
+- `js/app.js` rutas · `js/db.js` base de datos · `js/store.js` datos y cálculos · `js/plan.js` plan
+- `js/ui.js` piezas comunes · `js/theme.js` paletas · `js/fill.js` rellenar automático · `js/seed.js` alimentos y recetas de partida
+- `js/screens/` una pantalla por archivo
+- `sw.js`: **sube `VERSION` en cada publicación**
 
 ## Publicar
-No hay paso de compilación: Cloudflare Pages sirve la carpeta tal cual (directorio de salida: `/`).
+Cada `git push` a `main` despliega en Cloudflare (Worker `baku`, archivos estáticos con `wrangler.jsonc`).
+URL: https://baku.irevivalxx.workers.dev

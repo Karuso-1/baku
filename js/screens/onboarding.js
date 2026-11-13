@@ -2,6 +2,7 @@
 import { html, icon, bowl, gotas, ruler, $, $$, toast } from '../ui.js';
 import { computePlan, activityFactor, LEVEL_NAMES, bmi, fmt, fmtDate, todayISO } from '../plan.js';
 import { saveProfile, getProfile, db, askPersistence } from '../db.js';
+import { ensureSeed } from '../store.js';
 
 const KEY = 'baku-borrador';
 const DEFAULT = { name: '', sex: 'hombre', age: 30, height: 175, weight: 80, work: 'sentado', days: 0, goal: 'perder', target: 75, rate: 0.5 };
@@ -224,10 +225,11 @@ export function plan(app) {
     const profile = {
       name: d.name.trim(), sex: d.sex, age: d.age, height: d.height,
       startWeight: prev ? prev.startWeight : d.weight, weight: d.weight, target: d.target, goal: d.goal, rate: d.rate,
-      work: d.work, days: d.days, startDate: prev ? prev.startDate : today, plan: p, createdAt: prev ? prev.createdAt : Date.now(),
+      work: d.work, days: d.days, startDate: prev ? prev.startDate : today, plan: { ...p, weeksTotal: p.weeks }, createdAt: prev ? prev.createdAt : Date.now(),
     };
     await saveProfile(profile);
     await db.put('weights', { date: today, kg: d.weight });
+    await ensureSeed();
     sessionStorage.removeItem(KEY);
     askPersistence();
     go('#/hoy');
