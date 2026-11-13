@@ -68,8 +68,8 @@ export function fromOFF(p) {
   };
 }
 async function offSearch(q) {
-  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=15&lc=es&cc=es&fields=${OFF_FIELDS}`;
-  const res = await fetch(url);
+  // Pasa por nuestro Worker porque Open Food Facts no permite buscar desde el navegador
+  const res = await fetch(`api/buscar?q=${encodeURIComponent(q)}`);
   const data = await res.json();
   return (data.products || []).map(fromOFF).filter(Boolean);
 }

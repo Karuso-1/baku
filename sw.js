@@ -1,6 +1,6 @@
 // Service worker: guarda la app en el móvil para que abra sin conexión.
 // Cambia VERSION en cada publicación para que el móvil descargue lo nuevo.
-const VERSION = 'baku-v0.2.0';
+const VERSION = 'baku-v0.2.1';
 const FILES = [
   './',
   'index.html',
@@ -40,7 +40,8 @@ self.addEventListener('activate', (e) => {
 
 // Primero la red (para ver siempre lo último) y, si no hay conexión, la copia guardada
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const u = new URL(e.request.url);
+  if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.includes('/api/')) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {

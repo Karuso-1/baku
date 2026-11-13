@@ -3,4 +3,5 @@
 .assetsignore
 .wrangler
 wrangler.jsonc
+worker.js
 LEEME.md
