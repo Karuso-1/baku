@@ -31,9 +31,10 @@ export async function cuenta(app) {
 // ---------- 1. Email ----------
 function stepEmail(app, fromWelcome) {
   app.innerHTML = html`<div class="screen">
-    ${head(fromWelcome ? 'Entrar en Baku' : 'Copia en la nube', true)}
+    ${head(fromWelcome ? 'Empecemos' : 'Copia en la nube', true)}
+    ${fromWelcome ? '<p class="muted" style="font-size:14px;line-height:1.45;padding:0 4px">Escribe tu email. Si ya tienes cuenta, recuperas tus datos; si no, se crea sola.</p>' : ''}
     <section class="glass card" style="gap:12px">
-      ${note('cloud', 'Guarda tus datos en tu cuenta para no perderlos si cambias de móvil, y úsala en más de uno.')}
+      ${note('cloud', fromWelcome ? 'Tus datos se guardan en tu cuenta: no los pierdes si cambias de móvil.' : 'Guarda tus datos en tu cuenta para no perderlos si cambias de móvil, y úsala en más de uno.')}
       ${note('lock', '<b>Tus fotos se cifran en tu móvil</b> antes de subirlas. Nadie más puede verlas, ni siquiera quien gestiona la app.')}
       ${note('mail', 'Sin contraseñas: te mando un código al correo cada vez que entres en un móvil nuevo.')}
     </section>
@@ -41,9 +42,8 @@ function stepEmail(app, fromWelcome) {
       <input id="em" class="input glass flat" type="email" inputmode="email" autocomplete="email" placeholder="tu@correo.com" value="${esc(sessionStorage.getItem('baku-email') || '')}"></div>
     <div class="spacer"></div>
     <button class="btn" id="go">Enviarme el código</button>
-    ${fromWelcome ? '<p class="muted small" style="text-align:center">¿Primera vez? Escribe tu email igualmente: la cuenta se crea sola.</p>' : ''}
   </div>`;
-  $('#back', app).addEventListener('click', () => history.back());
+  $('#back', app).addEventListener('click', () => { location.hash = fromWelcome ? '#/bienvenida' : '#/perfil'; });
   const go = $('#go', app);
   go.addEventListener('click', async () => {
     const email = $('#em', app).value.trim().toLowerCase();
@@ -168,7 +168,7 @@ const fail = (app, e) => { app.innerHTML = html`<div class="screen">${head('No s
 async function done() {
   const p = await getProfile();
   location.hash = p ? '#/hoy' : '#/test/1';
-  setTimeout(() => toast(p ? 'Copia en la nube activada' : 'Cuenta lista. Ahora, tu test'), 300);
+  setTimeout(() => toast(p ? 'Copia en la nube activada' : 'Cuenta lista. Ahora, unas preguntas para tu plan'), 300);
 }
 
 // Primera sincronización: sube lo del móvil o baja lo de la nube
