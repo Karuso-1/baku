@@ -282,3 +282,10 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&am
 // Botón con icono de cristal
 export const circleBtn = (ic, label, attrs = '') => `<button class="icon-btn glass flat" aria-label="${label}" ${attrs}>${icon(ic, 18, 2)}</button>`;
 export const circleLink = (ic, label, href) => `<a class="icon-btn glass flat" aria-label="${label}" href="${href}">${icon(ic, 18, 2)}</a>`;
+
+// ---------- Logo de Baku (órbita y aguja) ----------
+let logoN = 0;
+export function logoMark(size = 48, color = '#F2EADB') {
+  const u = 'lg' + (++logoN);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-35 50 50)"><defs><mask id="g${u}"><rect width="100" height="100" fill="#fff"/><rect x="38.0" y="0" width="24" height="100" fill="#000"/></mask></defs><g mask="url(#g${u})"><ellipse cx="50" cy="50" rx="39.5" ry="19.5" fill="none" stroke="${color}" stroke-width="8"/></g><g fill="${color}"><path d="M50.00 3.00Q52.02 47.98 63.00 50.00Q52.02 52.02 50.00 97.00Q47.98 52.02 37.00 50.00Q47.98 47.98 50.00 3.00Z"/></g></g></svg>`;
+}

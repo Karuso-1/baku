@@ -1,5 +1,5 @@
 // Bienvenida, test inicial (4 pasos) y plan.
-import { html, icon, bowl, gotas, ruler, $, $$, toast } from '../ui.js';
+import { html, icon, bowl, gotas, ruler, $, $$, toast, logoMark } from '../ui.js';
 import { computePlan, activityFactor, LEVEL_NAMES, bmi, fmt, fmtDate, todayISO } from '../plan.js';
 import { saveProfile, getProfile, db, askPersistence } from '../db.js';
 import { ensureSeed } from '../store.js';
@@ -34,8 +34,8 @@ export function bienvenida(app) {
   app.className = 'full';
   app.innerHTML = html`<div class="screen" style="align-items:center;text-align:center">
     <div class="spacer"></div>
-    <div style="filter:drop-shadow(0 20px 40px rgba(0,0,0,0.25))">${bowl(0.62, 190)}</div>
-    <h1 style="font-size:52px;font-weight:600;letter-spacing:-0.04em;margin-top:18px">Baku</h1>
+    <div class="logo-in" style="filter:drop-shadow(0 18px 36px rgba(0,0,0,0.28))">${logoMark(150)}</div>
+    <h1 style="font-size:52px;font-weight:620;letter-spacing:-0.045em;margin-top:14px">baku</h1>
     <p style="font-size:18px;font-weight:500">Come con ganas. Con cabeza.</p>
     <p class="muted" style="font-size:14px;line-height:1.4;max-width:280px">Tu dieta, tus menús y tu progreso en un solo sitio.</p>
     <div class="spacer"></div>
