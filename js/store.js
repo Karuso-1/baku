@@ -46,9 +46,10 @@ export async function ensureSeed() {
       const food = { id: uid(), ...f, liked: false, hidden: false, source: 'baku' };
       await db.put('foods', food);
       byName[f.name] = food;
-    } else if (old.source === 'baku' && (!old.tags || old.top !== f.top)) {
-      // Alimentos de la biblioteca anterior: se añaden etiquetas sin tocar valores ni me gusta
-      old.tags = f.tags; old.top = !!f.top;
+    } else if (old.source === 'baku' && (!old.tags || old.top !== f.top || (f.cat === 'Platos' && old.cat !== 'Platos'))) {
+      // Alimentos de la biblioteca anterior: se añaden etiquetas (y los platos pasan a su apartado) sin tocar valores ni me gusta
+      old.tags = old.tags || f.tags; old.top = !!f.top;
+      if (f.cat === 'Platos') old.cat = 'Platos';
       await db.put('foods', old);
     }
   }

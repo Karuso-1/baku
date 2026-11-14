@@ -7,7 +7,7 @@ Web instalable (PWA) para Android. Los datos se guardan en el navegador del móv
 - Hoy: cuenco animado con lo comido, tubos de macros, comidas del día (pendiente/hecha), racha, peso, foto semanal y media de la semana.
 - Progreso: gráfica con proyección, anotar peso (recalcula el plan), fotos semanales (frontal, lateral, trasera) y comparar (lado a lado o deslizar, zoom, guardar imagen).
 - Menús: semana, día por comidas, añadir platos, cambiar, rellenar día/semana con propuesta antes de aplicar, copiar día y repetir semana.
-- Despensa: biblioteca de 533 alimentos con buscador sin tildes, recetas (con foto), alimentos por categorías con me gusta/oculto, ficha con raciones, búsqueda en Open Food Facts, escáner de códigos de barras, alta manual y "Llena tu despensa".
+- Despensa: biblioteca de 612 alimentos (con un apartado Platos: rebozados, a la plancha, guisos, arroces, pasta, bocadillos y comida rápida) con buscador sin tildes, recetas (con foto), alimentos por categorías con me gusta/oculto, ficha con raciones, búsqueda en Open Food Facts, escáner de códigos de barras, alta manual y "Llena tu despensa".
 - Dietas y alérgenos: vegetariana, vegana, sin gluten, sin lactosa y los 14 alérgenos de la UE, con iconos en fichas y recetas. Lo que no encaja no sale en las propuestas.
 - Comedor: 65 platos típicos de comedor ya calculados y "Montar el menú de hoy" con ración pequeña, normal o grande.
 - Perfil: foto, plan, datos editables, pausar el plan, fondo (paletas o foto), copia de seguridad y restaurar.

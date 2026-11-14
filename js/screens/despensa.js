@@ -45,6 +45,7 @@ export async function despensaRecetas(app) {
 const OFF_FIELDS = 'code,product_name,product_name_es,brands,nutriments,categories_tags,serving_quantity,quantity,allergens_tags,traces_tags,ingredients_analysis_tags';
 function guessCat(tags = []) {
   const t = tags.join(' ');
+  if (/meal|dish|prepared|pizza|sandwich|plato/.test(t)) return 'Platos';
   if (/beverage|drink|juice|bebida/.test(t)) return 'Bebidas';
   if (/dair|yogurt|cheese|milk|lact/.test(t)) return 'Lácteos';
   if (/legum|lentil|chickpea|bean/.test(t)) return 'Legumbres';
