@@ -70,7 +70,7 @@ export async function menus(app, profile, params) {
       <div class="between"><div class="row" style="gap:10px"><span class="title-ic glass flat">${icon('menus', 18, 2)}</span><h1 class="h1">Menús</h1></div>
       <div class="row" style="gap:6px"><a class="icon-btn glass flat" href="#/menus?fecha=${addDays(date, -7)}" aria-label="Semana anterior">${icon('chevl', 16, 2)}</a><a class="icon-btn glass flat" href="#/menus?fecha=${addDays(date, 7)}" aria-label="Semana siguiente">${icon('chev', 16, 2)}</a></div></div>
     </div>
-    <div class="glass flat" style="border-radius:22px;padding:4px;display:flex;gap:2px">${strip}</div>
+    <div class="glass flat" id="strip" style="border-radius:22px;padding:4px;display:flex;gap:2px">${strip}</div>
 
     <section class="glass card" style="gap:8px">
       <div class="between"><span class="col"><span class="h2">${date === today ? 'Hoy' : WD[parse(date).getDay()]} · ${short(date)}</span><span class="muted small num">${fmt(planned.kcal)} de ${fmt(goal)} kcal planificadas</span></span>

@@ -12,6 +12,8 @@ import { despensaRecetas, despensaAlimentos, despensaComedor, comedorMenu, ficha
 import { perfil, fondo, copia, meta } from './screens/perfil.js';
 import { cuenta } from './screens/cuenta.js';
 import { startSync } from './sync.js';
+import { showTips } from './tips.js';
+const TIP_FOR = { '/hoy': 'hoy', '/menus': 'menus', '/despensa': 'despensa', '/despensa/alimentos': 'alimentos', '/progreso': 'progreso' };
 
 const app = document.getElementById('app');
 
@@ -76,6 +78,7 @@ async function route() {
     renderNav(tab);
     try {
       await fn(app, profile, params, ...mm.slice(1));
+      if (TIP_FOR[path] && ticket === rendering) setTimeout(() => showTips(TIP_FOR[path]).catch(() => {}), 450);
     } catch (e) {
       console.error(e);
       if (ticket === rendering) app.innerHTML = `<div class="screen"><section class="glass card"><h2 class="h2">Algo ha fallado</h2><p class="muted" style="font-size:13px">${String(e.message || e)}</p><a class="btn small" href="#/hoy">Volver a Hoy</a></section></div>`;

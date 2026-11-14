@@ -8,6 +8,7 @@ import { PALETTES, applyTheme } from '../theme.js';
 import { dietOf, dietSummary } from '../diet.js';
 import { dietControls } from './onboarding.js';
 import { hasSession, signOut, useLocalData } from '../sync.js';
+import { resetTips } from '../tips.js';
 
 const WORK = { sentado: 'Sentado', depie: 'De pie', fisico: 'Físico' };
 const DAYS = ['0 días', '1–2 días', '3–4 días', '5+ días'];
@@ -61,6 +62,7 @@ export async function perfil(app, profile) {
       ${row('image', 'Fondo', s.bgPhoto ? 'Mi foto' : PALETTES[s.palette].name, 'data-go="#/perfil/fondo"')}
       ${row('calendar', 'La semana empieza el', s.weekStart === 1 ? 'Lunes' : 'Domingo', 'data-e="week"')}
       ${row('cloud', 'Cuenta y copia en la nube', hasSession() ? 'Activa' : 'Sin activar', 'data-go="#/cuenta"')}
+      ${row('info', 'Volver a ver los consejos', '', 'data-tips="1"')}
       ${row('download', 'Copia de seguridad', daysAgo === null ? 'Nunca' : daysAgo === 0 ? 'Hoy' : `Hace ${daysAgo} días`, 'data-go="#/perfil/copia"')}
     </section></div>
     <p class="muted small" style="text-align:center">${hasSession() ? 'Baku · tus datos en este móvil y en tu copia en la nube' : 'Baku · tus datos solo están en este móvil'}</p>
@@ -68,6 +70,7 @@ export async function perfil(app, profile) {
 
   const rerender = async () => perfil(app, await getProfile());
   $$('[data-go]', app).forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.go; }));
+  $('[data-tips]', app).addEventListener('click', async () => { await resetTips(); location.hash = '#/hoy'; });
   $('#foto', app).addEventListener('click', () => sheet('Foto de perfil', `<button class="btn" id="pick">${icon('image', 18)}Elegir foto</button>${s.avatar ? '<button class="btn ghost" id="ini">Usar mi inicial</button>' : ''}`, {
     onMount: ({ el, close }) => {
       $('#pick', el).addEventListener('click', async () => {

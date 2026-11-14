@@ -244,3 +244,19 @@ h1, h2, h3, p { margin: 0; }
 .h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
 .h2 { font-size: 15px; font-weight: 600; }
 .title-ic { width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: var(--crema); flex: none; }
+
+/* ---------- Consejos para usuarios nuevos ---------- */
+.tip-root { position: fixed; inset: 0; z-index: 50; }
+.tip-hole { position: fixed; box-shadow: 0 0 0 9999px rgba(8, 22, 17, 0.62); outline: 1.5px solid rgba(242, 234, 219, 0.85); outline-offset: 0; transition: all .3s ease; pointer-events: none; }
+.tip-card { position: fixed; border-radius: 22px; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 5px; background: rgba(32, 62, 50, 0.92); transition: opacity .2s ease; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); }
+.tip-title { font-size: 15px; font-weight: 600; }
+.tip-text { font-size: 13px; line-height: 1.45; color: var(--apagado, #E3DCCD); }
+.tip-foot { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.tip-dots { display: flex; gap: 5px; flex: 1; }
+.tip-dots i { width: 6px; height: 6px; border-radius: 999px; background: rgba(242, 234, 219, 0.3); }
+.tip-dots i.on { background: var(--crema); width: 16px; }
+.tip-foot .btn { width: auto; height: 36px; padding: 0 16px; font-size: 13px; }
+.tip-foot .link { font-size: 13px; }
+.tip-arrow { position: absolute; width: 14px; height: 14px; background: rgba(32, 62, 50, 0.92); transform: translateX(-50%) rotate(45deg); }
+.tip-arrow.up { top: -7px; border-left: 1px solid rgba(255,255,255,0.2); border-top: 1px solid rgba(255,255,255,0.2); }
+.tip-arrow.down { bottom: -7px; border-right: 1px solid rgba(255,255,255,0.2); border-bottom: 1px solid rgba(255,255,255,0.2); }
