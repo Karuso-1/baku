@@ -267,7 +267,7 @@ h1, h2, h3, p { margin: 0; }
 @keyframes logo-in { from { opacity: 0; transform: rotate(-70deg) scale(.85); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .logo-in svg { animation: none; } }
 
-/* Marca de agua del logo en las pantallas principales */
-#brand { position: absolute; top: calc(-46px + var(--safe-top, 0px)); right: -58px; width: 230px; height: 230px; opacity: 0.07; pointer-events: none; z-index: 0; transition: opacity .3s; }
-#brand[hidden] { display: block; opacity: 0; }
-#app { position: relative; z-index: 1; }
+/* Logo pequeño arriba a la izquierda en las pantallas principales */
+#brand { position: absolute; top: calc(18px + var(--safe-top)); left: 22px; width: 22px; height: 22px; opacity: 0.55; pointer-events: none; z-index: 2; }
+#brand[hidden] { display: none; }
+html, body { overflow-x: hidden; }

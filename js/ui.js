@@ -205,7 +205,7 @@ export function renderNav(active) {
   const nav = document.getElementById('nav');
   const brand = document.getElementById('brand');
   if (brand) {
-    if (!brand.innerHTML) brand.innerHTML = logoMark(230, '#F2EADB');
+    if (!brand.innerHTML) brand.innerHTML = logoMark(22, '#F2EADB');
     brand.hidden = !active;
   }
   if (!active) { nav.hidden = true; return; }
