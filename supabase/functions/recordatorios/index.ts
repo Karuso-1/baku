@@ -70,12 +70,21 @@ async function send(row: any, tipo: string) {
   }
 }
 
+const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, apikey, content-type, x-client-info' };
+
 Deno.serve(async (req) => {
-  const { data: cfg } = await sb.from('app_config').select('k,v');
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  try { return await handle(req); } catch (e) {
+    console.log('fallo', String(e));
+    return Response.json({ error: 'fallo interno' }, { status: 500, headers: cors });
+  }
+});
+
+async function handle(req: Request) {
+  const { data: cfg, error: cfgErr } = await sb.from('app_config').select('k,v');
+  if (cfgErr) throw cfgErr;
   const c = Object.fromEntries((cfg || []).map((r: any) => [r.k, r.v]));
   webpush.setVapidDetails('mailto:baku.app.dieta@gmail.com', c.vapid_public, c.vapid_private);
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, apikey, content-type, x-client-info' };
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   // Aviso de prueba: solo a tus propios dispositivos
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -112,4 +121,4 @@ Deno.serve(async (req) => {
     }
   }
   return Response.json({ ok: true, revisados: rows?.length || 0, enviados: sentN }, { headers: cors });
-});
+}

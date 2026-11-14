@@ -11,6 +11,8 @@ Web instalable (PWA) para Android. Los datos se guardan en el navegador del móv
 - Dietas y alérgenos: vegetariana, vegana, sin gluten, sin lactosa y los 14 alérgenos de la UE, con iconos en fichas y recetas. Lo que no encaja no sale en las propuestas.
 - Comedor: 65 platos típicos de comedor ya calculados y "Montar el menú de hoy" con ración pequeña, normal o grande.
 - Perfil: foto, plan, datos editables, pausar el plan, fondo (paletas o foto), copia de seguridad y restaurar.
+- Avisos (con cuenta): pesaje y foto semanal activados; planificar la semana, apuntar comidas y "llevas días sin entrar" opcionales. Máximo 1 al día, horas de silencio, pausa, y botón "No me avises de esto" en cada aviso.
+- Privacidad: página `#/privacidad` y casilla de consentimiento al crear cuenta.
 - Objetivo alcanzado: pasar a mantenimiento o nuevo objetivo.
 - Sin conexión e instalable (manifest + service worker). Logo provisional.
 
@@ -23,8 +25,10 @@ Web instalable (PWA) para Android. Los datos se guardan en el navegador del móv
 
 ## Supabase
 - `supabase/esquema.sql`: tablas, seguridad por usuario (RLS), carpeta privada de fotos y borrar cuenta. Se pega en SQL Editor.
-- `js/sync.js`: cuenta, cola de cambios, subir/bajar y cifrado AES-GCM. `js/screens/cuenta.js`: pantallas.
+- `js/avisos.js` y `js/screens/avisos.js`: avisos. `js/sync.js`: cuenta, cola de cambios, subir/bajar y cifrado AES-GCM. `js/screens/cuenta.js`: pantallas.
 - Las plantillas de correo (Magic Link y Confirm signup) deben incluir `{{ .Token }}` para que llegue el código.
+- Avisos: tabla `push_subs` (solo fechas, nunca datos), claves VAPID en `app_config` (solo la función), función `supabase/functions/recordatorios` (sin JWT; con sesión manda un aviso de prueba a tus móviles).
+- Cloudflare llama a la función cada hora (`triggers.crons` en `wrangler.jsonc` + `scheduled()` en `worker.js`): manda los avisos que toquen y mantiene la base despierta (el plan gratis se pausa tras 7 días sin uso).
 - Sin SMTP propio, Supabase solo envía correos a los miembros del equipo del proyecto.
 
 ## Publicar

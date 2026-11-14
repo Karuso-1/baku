@@ -80,3 +80,29 @@ do $$ begin
     revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
   end if;
 end $$;
+
+-- ---------- 7. Avisos (recordatorios) ----------
+create table if not exists public.push_subs (
+  endpoint text primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  p256dh text not null,
+  auth text not null,
+  tz text not null default 'Europe/Madrid',
+  prefs jsonb not null default '{}'::jsonb,
+  state jsonb not null default '{}'::jsonb,   -- solo fechas: último pesaje, foto, comida, menú y apertura
+  last_sent_on date,
+  sent jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+create index if not exists push_subs_user on public.push_subs(user_id);
+alter table public.push_subs enable row level security;
+create policy "avisos: solo lo mío" on public.push_subs for all to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+grant select, insert, update, delete on public.push_subs to authenticated, service_role;
+
+-- Claves VAPID del servidor (privada: solo la función, nunca en el repositorio)
+create table if not exists public.app_config (k text primary key, v text not null);
+alter table public.app_config enable row level security;
+revoke all on public.app_config from anon, authenticated;
+grant select on public.app_config to service_role;
+-- insert into public.app_config(k,v) values ('vapid_public','…'),('vapid_private','…');
