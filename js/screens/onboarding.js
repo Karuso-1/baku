@@ -34,8 +34,8 @@ export function bienvenida(app) {
   app.className = 'full';
   app.innerHTML = html`<div class="screen" style="align-items:center;text-align:center">
     <div class="spacer"></div>
-    <div class="logo-in" style="filter:drop-shadow(0 18px 36px rgba(0,0,0,0.28))">${logoMark(150)}</div>
-    <h1 style="font-size:52px;font-weight:620;letter-spacing:-0.045em;margin-top:14px">baku</h1>
+    <div style="filter:drop-shadow(0 20px 40px rgba(0,0,0,0.25))">${bowl(0.62, 190)}</div>
+    <h1 class="row logo-in" style="gap:12px;align-items:center;margin-top:22px;font-size:52px;font-weight:620;letter-spacing:-0.045em">${logoMark(50)}<span>baku</span></h1>
     <p style="font-size:18px;font-weight:500">Come con ganas. Con cabeza.</p>
     <p class="muted" style="font-size:14px;line-height:1.4;max-width:280px">Tu dieta, tus menús y tu progreso en un solo sitio.</p>
     <div class="spacer"></div>

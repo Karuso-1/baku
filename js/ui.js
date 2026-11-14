@@ -203,6 +203,11 @@ const TABS = [
 ];
 export function renderNav(active) {
   const nav = document.getElementById('nav');
+  const brand = document.getElementById('brand');
+  if (brand) {
+    if (!brand.innerHTML) brand.innerHTML = logoMark(230, '#F2EADB');
+    brand.hidden = !active;
+  }
   if (!active) { nav.hidden = true; return; }
   nav.hidden = false;
   nav.innerHTML = `<div class="bar glass">${TABS.map(([k, l]) =>
