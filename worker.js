@@ -1,6 +1,6 @@
 // Pequeño servidor de Baku: solo hace de puente con el buscador de Open Food Facts,
 // que no deja buscar directamente desde el navegador. El resto son archivos estáticos.
-const FIELDS = 'code,product_name,product_name_es,brands,nutriments,categories_tags,serving_quantity,quantity';
+const FIELDS = 'code,product_name,product_name_es,brands,nutriments,categories_tags,serving_quantity,quantity,allergens_tags,traces_tags,ingredients_analysis_tags';
 
 export default {
   async fetch(request, env) {

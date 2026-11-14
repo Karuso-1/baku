@@ -3,6 +3,7 @@ import { html, icon, bowl, gotas, ruler, $, $$, toast } from '../ui.js';
 import { computePlan, activityFactor, LEVEL_NAMES, bmi, fmt, fmtDate, todayISO } from '../plan.js';
 import { saveProfile, getProfile, db, askPersistence } from '../db.js';
 import { ensureSeed } from '../store.js';
+import { DIETS, COMMON_AVOID, ALLERGENS, DEFAULT_DIET, allergenIcon, leafIcon } from '../diet.js';
 
 const KEY = 'baku-borrador';
 const DEFAULT = { name: '', sex: 'hombre', age: 30, height: 175, weight: 80, work: 'sentado', days: 0, goal: 'perder', target: 75, rate: 0.5 };
@@ -22,8 +23,8 @@ const WORK_SHORT = { sentado: 'Sentado', depie: 'De pie', fisico: 'Físico' };
 function stepHeader(n, back) {
   return html`<div class="between" style="margin-bottom:6px">
     <a class="icon-btn glass flat" href="${back}" aria-label="Volver">${icon('back', 18, 2)}</a>
-    ${gotas(n)}
-    <span class="num muted" style="width:40px;text-align:right;font-size:12px">${n} de 4</span>
+    ${gotas(n, 5)}
+    <span class="num muted" style="width:40px;text-align:right;font-size:12px">${n} de 5</span>
   </div>`;
 }
 const title = (t, sub) => html`<div class="col" style="gap:6px;padding:0 4px"><h1 style="font-size:28px;font-weight:600;letter-spacing:-0.02em;line-height:1.1">${t}</h1><p class="muted" style="font-size:14px;line-height:1.4">${sub}</p></div>`;
@@ -122,7 +123,7 @@ export function paso3(app) {
     <div class="glass flat card" style="flex-direction:row;justify-content:space-between;align-items:center;padding:12px 16px">
       <span class="muted" style="font-size:13px">Tu nivel de actividad</span><span class="num" id="lvl" style="font-size:15px;font-weight:600">${level()}</span></div>
     <div class="spacer"></div>
-    <a class="btn" href="#/test/4">Continuar</a>
+    <a class="btn" href="#/test/dieta">Continuar</a>
   </div>`;
   const pick = (attr, key, parse) => $$(`[data-${attr}]`, app).forEach((b) => b.addEventListener('click', () => {
     d[key] = parse(b.dataset[attr]); save(d);
@@ -133,12 +134,55 @@ export function paso3(app) {
   pick('days', 'days', (v) => +v);
 }
 
-// ---------- Paso 4: objetivo ----------
+// ---------- Paso 4: alimentación ----------
+// Controles de dieta (se usan aquí y en Perfil). Devuelve { html, bind(root, onChange) }
+export function dietControls(diet) {
+  const d = { type: diet.type, avoid: [...(diet.avoid || [])] };
+  const others = ALLERGENS.filter(([k]) => !COMMON_AVOID.some(([c]) => c === k));
+  const openOthers = d.avoid.some((a) => others.some(([k]) => k === a));
+  const markup = html`<div class="field"><span class="label">¿Qué tipo de dieta sigues?</span>
+      <div class="chips" role="radiogroup" aria-label="Tipo de dieta" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      ${DIETS.map(([k, l, sub]) => html`<button class="chip" role="radio" data-diet="${k}" aria-checked="${d.type === k}" style="height:auto;border-radius:18px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:5px">${k === 'omnivora' ? icon('menus', 20) : leafIcon(20)}<span style="font-size:13px;font-weight:600">${l}</span><span style="font-size:11px;opacity:.75;line-height:1.3;font-weight:400">${sub}</span></button>`).join('')}
+      </div></div>
+    <div class="field"><span class="label">¿Hay algo que no puedas tomar?</span>
+      <div class="chips" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      ${COMMON_AVOID.map(([k, l, sub]) => html`<button class="chip" data-avoid="${k}" aria-pressed="${d.avoid.includes(k)}" style="height:auto;border-radius:18px;padding:10px 12px;display:flex;align-items:center;gap:10px;text-align:left">${allergenIcon(k, 22)}<span class="col"><span style="font-size:14px;font-weight:600">${l}</span><span style="font-size:11px;opacity:.75;font-weight:400">${sub}</span></span></button>`).join('')}
+      </div>
+      <details ${openOthers ? 'open' : ''} style="margin-top:2px"><summary class="link" style="font-size:13px;padding:6px 4px;cursor:pointer">Otras alergias</summary>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px">${others.map(([k, l]) => `<button class="chip-s row" data-avoid="${k}" aria-pressed="${d.avoid.includes(k)}" style="gap:6px;justify-content:flex-start;padding:0 12px">${allergenIcon(k, 15)}${l}</button>`).join('')}</div></details>
+      <span class="muted small" style="line-height:1.4">Lo que marques no saldrá en las propuestas y te avisaré si lo añades. Es orientativo: con celiaquía o alergias, revisa siempre la etiqueta.</span></div>`;
+  const bind = (root, onChange) => {
+    $$('[data-diet]', root).forEach((b) => b.addEventListener('click', () => { d.type = b.dataset.diet; $$('[data-diet]', root).forEach((x) => x.setAttribute('aria-checked', x === b)); onChange({ ...d }); }));
+    $$('[data-avoid]', root).forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.avoid;
+      d.avoid = d.avoid.includes(k) ? d.avoid.filter((x) => x !== k) : [...d.avoid, k];
+      $$(`[data-avoid="${k}"]`, root).forEach((x) => x.setAttribute('aria-pressed', d.avoid.includes(k)));
+      onChange({ ...d, avoid: [...d.avoid] });
+    }));
+  };
+  return { html: markup, bind };
+}
+
+export function pasoDieta(app) {
+  const d = draft();
+  app.className = 'full';
+  const c = dietControls(d.diet || DEFAULT_DIET);
+  app.innerHTML = html`<div class="screen">
+    ${stepHeader(4, '#/test/3')}
+    ${title('Tu alimentación', 'Así no te propongo nada que no comas.')}
+    ${c.html}
+    <div class="spacer"></div>
+    <a class="btn" href="#/test/4">Continuar</a>
+  </div>`;
+  c.bind(app, (diet) => { d.diet = diet; save(d); });
+}
+
+// ---------- Paso 5: objetivo ----------
 export function paso4(app) {
   const d = draft();
   app.className = 'full';
   app.innerHTML = html`<div class="screen">
-    ${stepHeader(4, '#/test/3')}
+    ${stepHeader(5, '#/test/dieta')}
     ${title('Tu objetivo', 'Puedes cambiarlo cuando quieras desde tu perfil.')}
     <div class="seg glass flat" role="radiogroup" aria-label="Objetivo" style="margin-top:6px">
       ${['perder', 'mantener', 'ganar'].map((g) => html`<button role="radio" data-goal="${g}" aria-checked="${d.goal === g}">${g[0].toUpperCase() + g.slice(1)}</button>`).join('')}
@@ -225,7 +269,7 @@ export function plan(app) {
     const profile = {
       name: d.name.trim(), sex: d.sex, age: d.age, height: d.height,
       startWeight: prev ? prev.startWeight : d.weight, weight: d.weight, target: d.target, goal: d.goal, rate: d.rate,
-      work: d.work, days: d.days, startDate: prev ? prev.startDate : today, plan: { ...p, weeksTotal: p.weeks }, createdAt: prev ? prev.createdAt : Date.now(),
+      work: d.work, days: d.days, diet: d.diet || prev?.diet || { ...DEFAULT_DIET }, startDate: prev ? prev.startDate : today, plan: { ...p, weeksTotal: p.weeks }, createdAt: prev ? prev.createdAt : Date.now(),
     };
     await saveProfile(profile);
     await db.put('weights', { date: today, kg: d.weight });

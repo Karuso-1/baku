@@ -1,7 +1,8 @@
 // Recetas: crear, editar y ver.
 import { html, icon, sheet, $, $$, toast, esc, pickImage, resizeImage, blobUrl } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
-import { MEALS, MEAL_NAME, maps, recipeGet, recipePut, recipeDel, recipeServing, foodNutr, uid, dayGet, dayPut, addDays, parse } from '../store.js';
+import { MEALS, MEAL_NAME, maps, recipeGet, recipePut, recipeDel, recipeServing, foodNutr, uid, dayGet, dayPut, addDays, parse, searchSort } from '../store.js';
+import { dietCard, recipeTags } from '../diet.js';
 import { foodAmountSheet } from './menus.js';
 import { CATEGORIES } from '../seed.js';
 
@@ -84,12 +85,12 @@ export function foodPicker(m, onPick) {
     <a class="link" href="#/despensa/alimentos" style="text-align:center;font-size:13px">¿No está? Búscalo en Open Food Facts</a>`, {
     onMount: ({ el, close }) => {
       const render = () => {
-        const list = Object.values(m.foods).filter((f) => !f.hidden && (cat === 'Todas' || f.cat === cat) && (!q || f.name.toLowerCase().includes(q)))
-          .sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0) || a.name.localeCompare(b.name)).slice(0, 60);
+        const list = searchSort(Object.values(m.foods).filter((f) => !f.hidden && (cat === 'Todas' || f.cat === cat))
+          .sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0) || a.name.localeCompare(b.name)), q).slice(0, 60);
         $('#res', el).innerHTML = list.map((f) => `<button class="list-row" data-id="${f.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left"><span class="col grow"><span style="font-size:14px">${esc(f.name)}</span><span class="muted small num">${f.cat} · ${fmt(f.kcal)} kcal / 100 g</span></span>${icon('plus', 16, 2.2)}</button>`).join('') || '<p class="muted" style="text-align:center;padding:20px 0;font-size:13px">Nada con ese nombre.</p>';
         $$('[data-id]', el).forEach((b) => b.addEventListener('click', () => { close(); setTimeout(() => onPick(m.foods[b.dataset.id]), 230); }));
       };
-      $('#q', el).addEventListener('input', (e) => { q = e.target.value.trim().toLowerCase(); render(); });
+      $('#q', el).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
       $$('[data-cat]', el).forEach((b) => b.addEventListener('click', () => { cat = b.dataset.cat; $$('[data-cat]', el).forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); }));
       render();
     },
@@ -117,10 +118,11 @@ export async function recetaDetalle(app, profile, id) {
     </div>
     <div class="col" style="gap:8px;padding:0 4px;margin-top:-40px;position:relative">
       <h1 style="font-size:24px;font-weight:600;letter-spacing:-0.02em;line-height:1.15">${esc(r.name)}</h1>
-      <div class="row" style="gap:6px;flex-wrap:wrap">${(r.meals || []).map((k) => `<span class="pill">${MEAL_NAME[k]}</span>`).join('')}<span class="pill">${r.servings} ${r.servings === 1 ? 'ración' : 'raciones'}</span></div></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap">${r.comedor ? '<span class="pill">Comedor</span>' : ''}${(r.meals || []).map((k) => `<span class="pill">${MEAL_NAME[k]}</span>`).join('')}<span class="pill">${r.servings} ${r.servings === 1 ? 'ración' : 'raciones'}</span></div></div>
     <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
       <span class="col"><span class="muted small">Por ración</span><span class="num" style="font-size:22px;font-weight:600">${fmt(per.kcal)} <span class="unit">kcal</span></span></span>
       <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', per.p], ['Hidratos', per.h], ['Grasas', per.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
+    ${dietCard(recipeTags(r, m.foods), m.diet, { recipe: true })}
     <section class="glass card" style="gap:0;padding:12px 14px 6px">
       <div class="between" style="padding-bottom:4px"><h2 class="h2">Alimentos</h2><span class="muted small num">Receta entera · ${fmt(total)} kcal</span></div>
       ${r.items.map((it) => { const f = m.foods[it.foodId]; return `<a class="list-row" href="#/alimento/${it.foodId}" style="text-decoration:none;color:#fff"><span class="grow ellipsis" style="font-size:14px">${esc(f?.name || 'Eliminado')}</span><span class="muted num" style="font-size:13px">${it.g} g</span><span class="num" style="width:62px;text-align:right;font-size:13px;font-weight:600">${f ? fmt(foodNutr(f, it.g).kcal) : 0} <span class="unit">kcal</span></span></a>`; }).join('')}

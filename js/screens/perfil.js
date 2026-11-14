@@ -5,6 +5,8 @@ import { db, saveProfile, getProfile } from '../db.js';
 import { getSettings, saveSettings, weightsAll, photosByWeek, planWeek, addDays, parse, recipesAll } from '../store.js';
 import { avatar, totalWeeks } from './hoy.js';
 import { PALETTES, applyTheme } from '../theme.js';
+import { dietOf, dietSummary } from '../diet.js';
+import { dietControls } from './onboarding.js';
 
 const WORK = { sentado: 'Sentado', depie: 'De pie', fisico: 'Físico' };
 const DAYS = ['0 días', '1–2 días', '3–4 días', '5+ días'];
@@ -50,7 +52,7 @@ export async function perfil(app, profile) {
 
     <div class="col" style="gap:6px"><h2 class="muted" style="font-size:13px;font-weight:600;padding-left:4px">Tus datos</h2>
     <section class="glass card" style="gap:0;padding:4px 14px">
-      ${row('ruler2', 'Altura', `${profile.height} cm`, 'data-e="height"')}${row('cake', 'Edad', `${profile.age} años`, 'data-e="age"')}${row('user', 'Sexo', profile.sex === 'mujer' ? 'Mujer' : 'Hombre', 'data-e="sex"')}${row('steps', 'Actividad', `${WORK[profile.work]} · ${DAYS[profile.days]}`, 'data-e="act"')}
+      ${row('ruler2', 'Altura', `${profile.height} cm`, 'data-e="height"')}${row('cake', 'Edad', `${profile.age} años`, 'data-e="age"')}${row('user', 'Sexo', profile.sex === 'mujer' ? 'Mujer' : 'Hombre', 'data-e="sex"')}${row('steps', 'Actividad', `${WORK[profile.work]} · ${DAYS[profile.days]}`, 'data-e="act"')}${row('menus', 'Alimentación', esc(dietSummary(dietOf(profile))), 'data-e="diet"')}
     </section></div>
 
     <div class="col" style="gap:6px"><h2 class="muted" style="font-size:13px;font-weight:600;padding-left:4px">App</h2>
@@ -84,6 +86,16 @@ export async function perfil(app, profile) {
 }
 
 function editData(kind, profile, s, done) {
+  if (kind === 'diet') {
+    let diet = dietOf(profile);
+    const c = dietControls(diet);
+    sheet('Alimentación', `${c.html}<button class="btn" id="ok">Guardar</button>`, {
+      onMount: ({ el, close }) => {
+        c.bind(el, (d) => { diet = d; });
+        $('#ok', el).addEventListener('click', async () => { close(); profile.diet = diet; await saveProfile(profile); toast('Guardado'); done(); });
+      },
+    });
+  }
   if (kind === 'height') {
     let v = profile.height;
     sheet('Altura', `<div class="ruler-value"><span class="big num" id="v">${v}</span> <span class="unit" style="font-size:15px">cm</span></div><div id="r"></div><button class="btn" id="ok">Guardar</button>`, {

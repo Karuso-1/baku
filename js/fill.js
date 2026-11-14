@@ -1,11 +1,14 @@
 // Rellenar días automáticamente con tus recetas y alimentos favoritos (sin IA).
 import { MEALS, recipeServing, foodNutr } from './store.js';
+import { fits, recipeTags, tagsOf, DEFAULT_DIET } from './diet.js';
 
 const SNACK_CATS = ['Frutas', 'Lácteos'];
 
-// Candidatos para una comida: recetas con esa etiqueta y sin alimentos ocultos
+// Candidatos para una comida: recetas propias con esa etiqueta, sin alimentos ocultos
+// y que encajan con la dieta (los platos de comedor no entran en el rellenado)
 function candidates(meal, m) {
-  return Object.values(m.recipes).filter((r) => r.meals?.includes(meal) && r.items.length && !r.items.some((it) => m.foods[it.foodId]?.hidden));
+  const diet = m.diet || DEFAULT_DIET;
+  return Object.values(m.recipes).filter((r) => !r.comedor && r.meals?.includes(meal) && r.items.length && !r.items.some((it) => m.foods[it.foodId]?.hidden) && fits(recipeTags(r, m.foods), diet));
 }
 
 function likedScore(r, m) { return r.items.filter((it) => m.foods[it.foodId]?.liked).length; }
@@ -30,8 +33,10 @@ export function pickRecipe(meal, target, m, used = {}, exclude = null) {
 }
 
 function pickSnack(target, m, used = {}) {
-  const foods = Object.values(m.foods).filter((f) => !f.hidden && SNACK_CATS.includes(f.cat) && f.portions?.length);
-  const pool = foods.filter((f) => f.liked).length ? foods.filter((f) => f.liked) : foods;
+  const foods = Object.values(m.foods).filter((f) => !f.hidden && SNACK_CATS.includes(f.cat) && f.portions?.length && fits(tagsOf([f]), m.diet || DEFAULT_DIET));
+  // Primero lo que te gusta; si no hay nada, los básicos de la biblioteca (no helados ni natillas)
+  const liked = foods.filter((f) => f.liked), basic = foods.filter((f) => f.top);
+  const pool = liked.length ? liked : basic.length ? basic : foods;
   if (!pool.length) return [];
   const sorted = pool.map((f) => {
     const p = f.portions.find((x) => x.default) || f.portions[0];

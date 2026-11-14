@@ -1,16 +1,18 @@
 // Despensa: recetas, alimentos, ficha, escáner, alta manual y primera vez.
 import { html, icon, sheet, $, $$, toast, esc, blobUrl, circleBtn } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
-import { MEALS, MEAL_NAME, maps, foodGet, foodPut, foodNutr, recipeServing, uid, dayGet, dayPut, getSettings, saveSettings, addDays, parse } from '../store.js';
+import { MEALS, MEAL_NAME, maps, foodGet, foodPut, foodNutr, recipeServing, uid, dayGet, dayPut, getSettings, saveSettings, addDays, parse, searchSort } from '../store.js';
+import { ALLERGENS, allergenIcon, allergenRow, conflicts, dietCard, tagsOf, tagsFromOFF, dietActive, recipeTags } from '../diet.js';
+import { COURSES, SIZES } from '../comedor.js';
 import { CATEGORIES, SEED } from '../seed.js';
 import { foodAmountSheet } from './menus.js';
 import { db } from '../db.js';
 
 function header(tab) {
+  const t = (k, href, l) => `<a role="tab" href="${href}" aria-selected="${tab === k}" style="border-radius:999px;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:13px;${tab === k ? 'background:var(--crema);color:var(--fondo);font-weight:600' : 'color:#fff'}">${l}</a>`;
   return html`<div class="row" style="gap:10px;padding:0 4px"><span class="title-ic glass flat">${icon('despensa', 18, 2)}</span><h1 class="h1">Despensa</h1></div>
-  <div class="seg glass" role="tablist" aria-label="Apartados" style="height:44px">
-    <a role="tab" href="#/despensa" aria-selected="${tab === 'recetas'}" style="border-radius:999px;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:13px;${tab === 'recetas' ? 'background:var(--crema);color:var(--fondo);font-weight:600' : 'color:#fff'}">Recetas</a>
-    <a role="tab" href="#/despensa/alimentos" aria-selected="${tab === 'alimentos'}" style="border-radius:999px;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:13px;${tab === 'alimentos' ? 'background:var(--crema);color:var(--fondo);font-weight:600' : 'color:#fff'}">Alimentos</a></div>`;
+  <div class="seg glass" role="tablist" aria-label="Apartados" style="height:44px;grid-template-columns:repeat(3,minmax(0,1fr))">
+    ${t('recetas', '#/despensa', 'Recetas')}${t('alimentos', '#/despensa/alimentos', 'Alimentos')}${t('comedor', '#/despensa/comedor', 'Comedor')}</div>`;
 }
 
 // ---------- Recetas ----------
@@ -21,7 +23,7 @@ export async function despensaRecetas(app) {
   const m = await maps();
   let filter = sessionStorage.getItem('baku-filtro-recetas') || 'todas';
   const render = () => {
-    const list = Object.values(m.recipes).filter((r) => filter === 'todas' || r.meals?.includes(filter)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const list = Object.values(m.recipes).filter((r) => !r.comedor && (filter === 'todas' || r.meals?.includes(filter))).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     $('#grid', app).innerHTML = list.length ? list.map((r) => html`<a href="#/receta/${r.id}" class="glass" style="border-radius:18px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:#fff;box-shadow:none">
       <div style="height:96px;overflow:hidden">${r.photo ? `<img src="${blobUrl(r.photo)}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div class="empty-ph" style="background:rgba(255,255,255,0.06)">${icon('menus', 30, 1.6)}</div>`}</div>
       <div class="col" style="padding:8px 10px 10px;gap:2px"><span style="font-size:13px;font-weight:600;line-height:1.25">${esc(r.name)}</span><span class="num muted small">${fmt(recipeServing(r, m.foods).kcal)} kcal / ración</span></div></a>`).join('')
@@ -40,7 +42,7 @@ export async function despensaRecetas(app) {
 }
 
 // ---------- Open Food Facts ----------
-const OFF_FIELDS = 'code,product_name,product_name_es,brands,nutriments,categories_tags,serving_quantity,quantity';
+const OFF_FIELDS = 'code,product_name,product_name_es,brands,nutriments,categories_tags,serving_quantity,quantity,allergens_tags,traces_tags,ingredients_analysis_tags';
 function guessCat(tags = []) {
   const t = tags.join(' ');
   if (/beverage|drink|juice|bebida/.test(t)) return 'Bebidas';
@@ -64,7 +66,7 @@ export function fromOFF(p) {
     cat: guessCat(p.categories_tags),
     kcal: Math.round(kcal), p: +(n.proteins_100g || 0).toFixed(1), h: +(n.carbohydrates_100g || 0).toFixed(1), g: +(n.fat_100g || 0).toFixed(1),
     portions: sq > 0 ? [{ name: '1 ración', g: Math.round(sq), default: true }] : [],
-    barcode: p.code, quantity: p.quantity || '', source: 'off',
+    barcode: p.code, quantity: p.quantity || '', source: 'off', tags: tagsFromOFF(p),
   };
 }
 async function offSearch(q) {
@@ -87,21 +89,37 @@ export async function despensaAlimentos(app) {
   const m = await maps();
   let cat = sessionStorage.getItem('baku-cat') || 'Todas';
   let q = '';
+  const open = new Set();
   let offTimer, offSeq = 0;
   const row = (f, i) => {
     const op = f.hidden ? 'opacity:.5' : '';
-    const sub = f.hidden ? 'Oculto · no saldrá en propuestas' : `${fmt(f.kcal)} kcal / 100 g${f.brand ? ' · ' + esc(f.brand) : ''}`;
+    const bad = !f.hidden && conflicts(tagsOf([f]), m.diet).length;
+    const sub = f.hidden ? 'Oculto · no saldrá en propuestas' : bad ? `<span style="color:var(--oxido-claro)">No encaja con tu dieta</span> · ${fmt(f.kcal)} kcal` : `${fmt(f.kcal)} kcal / 100 g${f.brand ? ' · ' + esc(f.brand) : ''}`;
+    const al = allergenRow(tagsOf([f]), 12);
     const btn = f.hidden
       ? `<button class="icon-btn plain" data-show="${f.id}" aria-label="Volver a mostrar ${esc(f.name)}" style="color:var(--apagado)">${icon('eyeoff', 17)}</button>`
       : `<button class="icon-btn plain" data-like="${f.id}" aria-pressed="${!!f.liked}" aria-label="${f.liked ? 'Quitar de me gusta' : 'Me gusta'}: ${esc(f.name)}" style="color:${f.liked ? 'var(--crema)' : 'var(--apagado)'}">${f.liked ? `<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>` : icon('heart', 17)}</button>`;
-    return `<div class="list-row" style="padding:5px 0;${i ? '' : 'border-top:0'}"><a href="#/alimento/${f.id}" class="col grow" style="min-width:0;text-decoration:none;color:#fff;${op}"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(f.name)}</span><span class="num muted small ellipsis">${sub}</span></a>${btn}</div>`;
+    return `<div class="list-row" style="padding:5px 0;${i ? '' : 'border-top:0'}"><a href="#/alimento/${f.id}" class="col grow" style="min-width:0;text-decoration:none;color:#fff;${op}"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(f.name)}</span><span class="row" style="gap:6px;min-width:0"><span class="num muted small ellipsis">${sub}</span>${al ? `<span class="row muted" style="gap:3px;flex:none">${al}</span>` : ''}</span></a>${btn}</div>`;
   };
   const render = () => {
-    const all = Object.values(m.foods).filter((f) => (cat === 'Todas' || f.cat === cat) && (!q || f.name.toLowerCase().includes(q) || (f.brand || '').toLowerCase().includes(q)));
-    const groups = (cat === 'Todas' ? CATEGORIES : [cat]).map((c) => [c, all.filter((f) => f.cat === c).sort((a, b) => (a.hidden - b.hidden) || (b.liked - a.liked) || a.name.localeCompare(b.name))]).filter(([, l]) => l.length);
-    $('#groups', app).innerHTML = groups.map(([c, l]) => html`<section class="glass card" style="gap:0;padding:10px 10px 6px 14px">
-      <div class="between" style="padding:0 4px 2px 0"><h2 class="h2">${c}</h2><span class="muted small num">${l.length} · ${l.filter((f) => f.liked).length} te gustan</span></div>${l.map(row).join('')}</section>`).join('')
-      || (q ? '' : `<p class="muted" style="text-align:center;padding:20px 0;font-size:13px">No hay alimentos en esta categoría.</p>`);
+    const inCat = Object.values(m.foods).filter((f) => cat === 'Todas' || f.cat === cat);
+    if (q) {
+      // Con búsqueda: una sola lista, lo más parecido primero
+      const hits = searchSort(inCat, q).slice(0, 60);
+      $('#groups', app).innerHTML = hits.length ? html`<section class="glass card" style="gap:0;padding:10px 10px 6px 14px">
+        <div class="between" style="padding:0 4px 2px 0"><h2 class="h2">En tu despensa</h2><span class="muted small num">${hits.length}${hits.length === 60 ? '+' : ''}</span></div>${hits.map(row).join('')}</section>`
+        : `<p class="muted small" style="text-align:center;padding:8px">No está en tu despensa.</p>`;
+    } else {
+      const groups = (cat === 'Todas' ? CATEGORIES : [cat]).map((c) => [c, inCat.filter((f) => f.cat === c).sort((a, b) => (a.hidden - b.hidden) || (b.liked - a.liked) || a.name.localeCompare(b.name))]).filter(([, l]) => l.length);
+      // Sin búsqueda y con "Todas": cada categoría enseña sus primeros y un botón para ver el resto
+      $('#groups', app).innerHTML = groups.map(([c, l]) => {
+        const cut = cat === 'Todas' && !open.has(c) && l.length > 8;
+        return html`<section class="glass card" style="gap:0;padding:10px 10px 6px 14px">
+        <div class="between" style="padding:0 4px 2px 0"><h2 class="h2">${c}</h2><span class="muted small num">${l.length} · ${l.filter((f) => f.liked).length} te gustan</span></div>${(cut ? l.slice(0, 6) : l).map(row).join('')}
+        ${cut ? `<button class="link" data-open="${c}" style="padding:10px 0 6px;font-size:13px;text-align:left">Ver los ${l.length}</button>` : ''}</section>`;
+      }).join('') || `<p class="muted" style="text-align:center;padding:20px 0;font-size:13px">No hay alimentos en esta categoría.</p>`;
+      $$('[data-open]', app).forEach((b) => b.addEventListener('click', () => { open.add(b.dataset.open); render(); }));
+    }
     bindRows();
     $('#off', app).innerHTML = '';
     clearTimeout(offTimer);
@@ -111,13 +129,13 @@ export async function despensaAlimentos(app) {
       offTimer = setTimeout(async () => {
         try {
           const res = await offSearch(q);
-          if (seq !== offSeq) return;
+          if (seq !== offSeq || !$('#off', app)) return;
           $('#off', app).innerHTML = res.length ? html`<section class="glass card" style="gap:0;padding:10px 14px 6px"><div class="between" style="padding-bottom:2px"><h2 class="h2">En Open Food Facts</h2><span class="muted small">Toca para guardar</span></div>
             ${res.map((p, i) => `<button class="list-row" data-off="${i}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;${i ? '' : 'border-top:0'}"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px">${esc(p.name)}</span><span class="muted small num ellipsis">${esc(p.brand || 'Sin marca')} · ${p.kcal} kcal / 100 g</span></span>${icon('plus', 16, 2.2)}</button>`).join('')}</section>`
             : `<p class="muted small" style="text-align:center;padding:8px">Nada en Open Food Facts. Puedes <a href="#/alimento/nuevo">añadirlo a mano</a>.</p>`;
           $$('[data-off]', app).forEach((b) => b.addEventListener('click', () => scanResult(res[+b.dataset.off])));
         } catch (_) {
-          if (seq === offSeq) $('#off', app).innerHTML = `<p class="muted small" style="text-align:center;padding:8px">Sin conexión con Open Food Facts.</p>`;
+          if (seq === offSeq && $('#off', app)) $('#off', app).innerHTML = `<p class="muted small" style="text-align:center;padding:8px">Sin conexión con Open Food Facts.</p>`;
         }
       }, 500);
     }
@@ -127,7 +145,7 @@ export async function despensaAlimentos(app) {
     $$('[data-show]', app).forEach((b) => b.addEventListener('click', async () => { const f = m.foods[b.dataset.show]; f.hidden = false; await foodPut(f); render(); }));
   };
   app.innerHTML = html`<div class="screen">${header('alimentos')}
-    <div class="row" style="gap:8px"><label class="search glass flat">${icon('search', 16, 2)}<input id="q" type="search" placeholder="Buscar alimento" aria-label="Buscar alimento"></label>
+    <div class="row" style="gap:8px"><label class="search glass flat">${icon('search', 16, 2)}<input id="q" type="search" placeholder="Buscar entre ${Object.keys(m.foods).length} alimentos" aria-label="Buscar alimento"></label>
     <a class="icon-btn glass flat" href="#/escaner" aria-label="Escanear código de barras" style="width:44px;height:44px">${icon('scan', 18)}</a></div>
     <div class="hscroll">${['Todas', ...CATEGORIES].map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === cat}">${c}</button>`).join('')}</div>
     <div id="groups" class="col" style="gap:12px"></div>
@@ -135,7 +153,7 @@ export async function despensaAlimentos(app) {
     <span class="muted small" style="text-align:center">Los que te gustan salen primero en las propuestas. Los ocultos, nunca.</span>
     <a class="btn small ghost" href="#/alimento/nuevo">${icon('plus', 16, 2.2)}Añadir a mano</a>
   </div>`;
-  $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim().toLowerCase(); render(); });
+  $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
   $$('[data-cat]', app).forEach((b) => b.addEventListener('click', () => { cat = b.dataset.cat; sessionStorage.setItem('baku-cat', cat); $$('[data-cat]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); }));
   render();
 }
@@ -156,6 +174,7 @@ export async function fichaAlimento(app, profile, id) {
     <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
       <span class="col"><span class="muted small">Por 100 g</span><span class="num" style="font-size:22px;font-weight:600">${fmt(f.kcal)} <span class="unit">kcal</span></span></span>
       <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', f.p], ['Hidratos', f.h], ['Grasas', f.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v, v % 1 && v < 10 ? 1 : 0)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
+    ${dietCard(tagsOf([f]), m.diet)}
     <section class="glass card" style="gap:0;padding:12px 14px 6px">
       <div class="between" style="padding-bottom:2px"><h2 class="h2">Raciones habituales</h2><span class="muted small">Así no tienes que pesar</span></div>
       ${(f.portions || []).map((p, i) => `<div class="list-row"><button class="col grow" data-def="${i}" style="background:none;border:0;padding:0;color:#fff;text-align:left" aria-label="Usar ${esc(p.name)} por defecto"><span style="font-size:14px;font-weight:500">${esc(p.name)}</span><span class="muted small num">${p.g} g</span></button>
@@ -212,7 +231,10 @@ export async function altaManual(app, profile, params, editId) {
   app.className = 'full';
   const existing = editId ? await foodGet(editId) : null;
   const code = params.get('codigo') || existing?.barcode || '';
-  const f = existing ? { ...existing } : { id: uid(), name: '', brand: '', cat: 'Otros', kcal: '', p: '', h: '', g: '', portions: [], liked: false, hidden: false, barcode: code, source: 'manual' };
+  const f = existing ? { ...existing } : { id: uid(), name: '', brand: '', cat: 'Otros', kcal: '', p: '', h: '', g: '', portions: [], liked: false, hidden: false, barcode: code, source: 'manual', tags: [] };
+  const tags = new Set(f.tags || []);
+  const ORIG = [['', 'Vegetal'], ['A', 'Huevo, lácteo o miel'], ['C', 'Carne'], ['P', 'Pescado o marisco']];
+  let orig = ['C', 'P', 'A'].find((k) => tags.has(k)) || '';
   let portionName = f.portions?.[0]?.name || '', portionG = f.portions?.[0]?.g || '';
   const field = (k, l, u) => `<label class="glass flat" style="border-radius:16px;padding:8px 14px;display:flex;flex-direction:column;gap:2px"><span class="muted small">${l}</span><span class="row" style="gap:4px"><input data-k="${k}" class="num" type="number" inputmode="decimal" value="${f[k]}" placeholder="0" style="width:100%;border:0;background:transparent;outline:none;font-size:20px;font-weight:600"><span class="unit">${u}</span></span></label>`;
   app.innerHTML = html`<div class="screen">
@@ -224,6 +246,10 @@ export async function altaManual(app, profile, params, editId) {
     <div class="between" style="padding:4px 4px 0"><h2 class="h2">Valores por 100 g</h2><span class="muted small">Como en la etiqueta</span></div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${field('kcal', 'Energía', 'kcal')}${field('p', 'Proteína', 'g')}${field('h', 'Hidratos', 'g')}${field('g', 'Grasas', 'g')}</div>
     <span id="chk" class="small" style="padding-left:4px"></span>
+    <div class="between" style="padding:4px 4px 0"><h2 class="h2">Origen</h2><span class="muted small">Para dietas vegetariana y vegana</span></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${ORIG.map(([k, l]) => `<button class="chip-s" data-orig="${k}" aria-pressed="${k === orig}">${l}</button>`).join('')}</div>
+    <div class="between" style="padding:4px 4px 0"><h2 class="h2">Alérgenos</h2><span class="muted small">Míralos en la etiqueta</span></div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px">${ALLERGENS.map(([k, l]) => `<button class="chip-s row" data-al="${k}" aria-pressed="${tags.has(k)}" style="gap:6px;justify-content:flex-start;padding:0 12px">${allergenIcon(k, 15)}${l}</button>`).join('')}</div>
     <div class="between" style="padding:4px 4px 0"><h2 class="h2">Ración</h2><span class="muted small">Opcional</span></div>
     <div class="row" style="gap:8px"><input id="pn" class="input glass flat" value="${esc(portionName)}" placeholder="1 tortita" style="height:46px;flex:1"><input id="pg" class="input glass flat num" type="number" inputmode="decimal" value="${portionG}" placeholder="g" style="height:46px;width:90px;text-align:right"></div>
     <div class="spacer"></div>
@@ -241,11 +267,15 @@ export async function altaManual(app, profile, params, editId) {
   $('#b', app).addEventListener('input', (e) => { f.brand = e.target.value; });
   $$('[data-k]', app).forEach((i) => i.addEventListener('input', (e) => { f[i.dataset.k] = e.target.value; check(); }));
   $$('[data-cat]', app).forEach((b) => b.addEventListener('click', () => { f.cat = b.dataset.cat; $$('[data-cat]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
+  $$('[data-orig]', app).forEach((b) => b.addEventListener('click', () => { orig = b.dataset.orig; $$('[data-orig]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
+  $$('[data-al]', app).forEach((b) => b.addEventListener('click', () => { const k = b.dataset.al; tags.has(k) ? tags.delete(k) : tags.add(k); b.setAttribute('aria-pressed', tags.has(k)); }));
   $('#pn', app).addEventListener('input', (e) => { portionName = e.target.value; });
   $('#pg', app).addEventListener('input', (e) => { portionG = e.target.value; });
   $('#save', app).addEventListener('click', async () => {
     if (!f.name.trim() || f.kcal === '') return toast('Falta el nombre o las kcal');
-    const food = { ...f, name: f.name.trim(), kcal: +f.kcal, p: +f.p || 0, h: +f.h || 0, g: +f.g || 0 };
+    ['C', 'P', 'A'].forEach((k) => tags.delete(k));
+    if (orig) tags.add(orig);
+    const food = { ...f, name: f.name.trim(), kcal: +f.kcal, p: +f.p || 0, h: +f.h || 0, g: +f.g || 0, tags: [...tags] };
     if (portionName.trim() && +portionG > 0) {
       const rest = (existing?.portions || []).slice(1);
       food.portions = [{ name: portionName.trim(), g: +portionG, default: true }, ...rest.map((p) => ({ ...p, default: false }))];
@@ -267,6 +297,7 @@ export function scanResult(p, onDone) {
     <div class="between"><span class="muted small">Categoría</span><div class="hscroll" style="margin:0;padding:0;max-width:66%">${CATEGORIES.map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === cat}">${c}</button>`).join('')}</div></div>
     <div style="border-radius:18px;background:rgba(255,255,255,0.06);padding:10px 14px" class="between"><span class="col"><span class="muted small">Por 100 g</span><span class="num" style="font-size:20px;font-weight:600">${p.kcal} <span class="unit">kcal</span></span></span>
       <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', p.p], ['Hidratos', p.h], ['Grasas', p.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${String(v).replace('.', ',')} g</span><span class="muted small">${l}</span></span>`).join('')}</span></div>
+    ${p.tags?.length ? `<div class="row" style="gap:8px;padding:0 4px;flex-wrap:wrap"><span class="muted small">Alérgenos</span><span class="row" style="gap:5px">${allergenRow(new Set(p.tags), 16)}</span></div>` : ''}
     ${portion ? `<div class="between" style="padding:0 4px"><span style="font-size:13px">Ración: ${portion.name} · <span class="num">${portion.g} g</span></span><span class="num" style="font-weight:600">${fmt((p.kcal * portion.g) / 100)} <span class="unit">kcal</span></span></div>` : ''}
     <button class="btn" id="ok">Guardar en la Despensa</button>
     <div class="between" style="padding:0 4px"><a class="link" href="#/alimento/nuevo${p.barcode ? '?codigo=' + p.barcode : ''}">No es este producto</a><span class="muted small">Datos: Open Food Facts</span></div>`, {
@@ -341,7 +372,7 @@ export async function llenar(app) {
   app.className = 'full';
   const foods = await db.all('foods');
   const byName = Object.fromEntries(foods.map((f) => [f.name, f]));
-  const list = SEED.map((s) => byName[s.name]).filter(Boolean);
+  const list = SEED.filter((s) => s.top).map((s) => byName[s.name]).filter(Boolean);
   const state = Object.fromEntries(list.map((f) => [f.id, f.hidden ? 'hid' : f.liked ? 'on' : '']));
   const count = () => Object.values(state).filter(Boolean).length;
   const chip = (f) => {
@@ -383,3 +414,97 @@ export async function llenar(app) {
   render();
 }
 export { addDays, parse };
+
+// ---------- Comedor: platos típicos ya calculados ----------
+
+const comedorRow = (r, m, i, action = 'link') => {
+  const t = recipeTags(r, m.foods);
+  const bad = conflicts(t, m.diet).length;
+  const al = allergenRow(t, 12);
+  const kcal = fmt(recipeServing(r, m.foods).kcal);
+  const inner = `<span class="col grow" style="min-width:0;${bad ? 'opacity:.55' : ''}"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(r.name)}</span>
+    <span class="row" style="gap:6px;min-width:0"><span class="muted small">${bad ? '<span style="color:var(--oxido-claro)">No encaja con tu dieta</span>' : 'Ración normal'}</span>${al ? `<span class="row muted" style="gap:3px">${al}</span>` : ''}</span></span>
+    <span class="num" style="font-size:13px;font-weight:600;flex:none">${kcal} <span class="unit">kcal</span></span>`;
+  return action === 'link'
+    ? `<a href="#/receta/${r.id}" class="list-row" style="text-decoration:none;color:#fff;${i ? '' : 'border-top:0'}">${inner}<span class="muted">${icon('chev', 14, 2)}</span></a>`
+    : `<button class="list-row" data-c="${r.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%;${i ? '' : 'border-top:0'}">${inner}${icon('plus', 16, 2.2)}</button>`;
+};
+export { comedorRow };
+
+export async function despensaComedor(app) {
+  app.className = '';
+  const m = await maps();
+  const all = Object.values(m.recipes).filter((r) => r.comedor);
+  let q = '';
+  let onlyFit = dietActive(m.diet);
+  const render = () => {
+    const list = searchSort(all, q).filter((r) => !onlyFit || !conflicts(recipeTags(r, m.foods), m.diet).length);
+    $('#list', app).innerHTML = COURSES.map(([k, l]) => {
+      const rows = list.filter((r) => r.course === k).sort((a, b) => (q ? 0 : a.name.localeCompare(b.name)));
+      return rows.length ? html`<section class="glass card" style="gap:0;padding:10px 12px 6px 14px"><div class="between" style="padding-bottom:2px"><h2 class="h2">${l}</h2><span class="muted small num">${rows.length}</span></div>${rows.map((r, i) => comedorRow(r, m, i)).join('')}</section>` : '';
+    }).join('') || `<p class="muted" style="text-align:center;padding:20px 0;font-size:13px">Ningún plato con ese nombre.</p>`;
+  };
+  app.innerHTML = html`<div class="screen">${header('comedor')}
+    <section class="glass card" style="gap:10px">
+      <div class="col" style="gap:4px"><h2 class="h2">¿Comes en un comedor?</h2>
+      <p class="muted" style="font-size:13px;line-height:1.4">Elige el primero, el segundo y el postre que te han puesto y la ración. Las kcal ya están calculadas.</p></div>
+      <a class="btn small" href="#/comedor/menu">${icon('plus', 16, 2.2)}Montar el menú de hoy</a></section>
+    <label class="search glass flat">${icon('search', 16, 2)}<input id="q" type="search" placeholder="Buscar plato" aria-label="Buscar plato"></label>
+    ${dietActive(m.diet) ? `<button class="chip-s" id="fit" aria-pressed="${onlyFit}" style="align-self:flex-start">Solo lo que encaja con mi dieta</button>` : ''}
+    <div id="list" class="col" style="gap:12px"></div>
+    <span class="muted small" style="text-align:center;line-height:1.4;padding:0 10px">Valores aproximados de una ración de adulto. Cada comedor cocina a su manera: si quieres, abre un plato y ajústalo.</span>
+  </div>`;
+  $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
+  $('#fit', app)?.addEventListener('click', (e) => { onlyFit = !onlyFit; e.currentTarget.setAttribute('aria-pressed', onlyFit); render(); });
+  render();
+}
+
+// Montar el menú del comedor: un plato por apartado y la ración
+export async function comedorMenu(app, profile, params) {
+  app.className = 'full';
+  const m = await maps();
+  const date = params.get('fecha') || todayISO();
+  const meal = params.get('comida') || 'comida';
+  const ret = params.get('volver') || (params.get('fecha') ? `#/menus?fecha=${date}` : '#/hoy');
+  const all = Object.values(m.recipes).filter((r) => r.comedor);
+  const fit = (r) => !conflicts(recipeTags(r, m.foods), m.diet).length;
+  const pick = {}; // curso → id
+  let size = 1;
+  const total = () => Object.values(pick).reduce((s, id) => s + recipeServing(m.recipes[id], m.foods).kcal * (m.recipes[id].course === 'pan' ? 1 : size), 0);
+  const render = () => {
+    $('#courses', app).innerHTML = COURSES.map(([k, l]) => {
+      const opts = all.filter((r) => r.course === k).sort((a, b) => (fit(b) - fit(a)) || a.name.localeCompare(b.name));
+      return html`<div class="col" style="gap:8px"><div class="between" style="padding:0 4px"><h2 class="h2">${l.replace(/s$/, '')}</h2>${pick[k] ? `<button class="link small" data-clear="${k}">Quitar</button>` : `<span class="muted small">${k === 'pan' ? 'Opcional' : 'Elige uno'}</span>`}</div>
+        <div class="hscroll">${opts.map((r) => `<button class="chip-s" data-k="${k}" data-id="${r.id}" aria-pressed="${pick[k] === r.id}" style="${fit(r) ? '' : 'opacity:.45'}">${esc(r.name)}</button>`).join('')}</div></div>`;
+    }).join('');
+    const chosen = COURSES.map(([k]) => pick[k]).filter(Boolean).map((id) => m.recipes[id]);
+    const warn = chosen.filter((r) => !fit(r));
+    $('#sum', app).innerHTML = chosen.length ? html`${chosen.map((r) => `<div class="between" style="padding:4px 0"><span class="ellipsis" style="font-size:14px">${esc(r.name)}</span><span class="num" style="font-size:13px;font-weight:600">${fmt(recipeServing(r, m.foods).kcal * (r.course === 'pan' ? 1 : size))} <span class="unit">kcal</span></span></div>`).join('')}
+      <div class="between" style="padding-top:8px;border-top:1px solid var(--linea)"><span style="font-weight:600">Total</span><span class="num" style="font-size:22px;font-weight:600">${fmt(total())} <span class="unit">kcal</span></span></div>
+      ${warn.length ? `<span class="small" style="color:var(--oxido-claro)">${warn.map((r) => esc(r.name)).join(', ')}: no encaja con tu dieta</span>` : ''}`
+      : `<span class="muted small" style="text-align:center;padding:6px 0">Elige los platos de arriba.</span>`;
+    $('#ok', app).disabled = !chosen.length;
+    $$('[data-id]', app).forEach((b) => b.addEventListener('click', () => { pick[b.dataset.k] = pick[b.dataset.k] === b.dataset.id ? undefined : b.dataset.id; render(); }));
+    $$('[data-clear]', app).forEach((b) => b.addEventListener('click', () => { delete pick[b.dataset.clear]; render(); }));
+  };
+  app.innerHTML = html`<div class="screen">
+    <div class="row" style="gap:12px"><button class="icon-btn glass flat" id="back" aria-label="Volver">${icon('back', 18, 2)}</button>
+      <span class="col"><h1 style="font-size:20px;font-weight:600">Menú del comedor</h1><span class="muted small">${date === todayISO() ? 'Hoy' : parse(date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })} · ${MEAL_NAME[meal]}</span></span></div>
+    <div id="courses" class="col" style="gap:14px"></div>
+    <div class="col" style="gap:8px"><div class="between" style="padding:0 4px"><h2 class="h2">Ración</h2><span class="muted small">Primero, segundo y postre</span></div>
+      <div class="seg glass flat" role="radiogroup" aria-label="Ración" style="height:44px">${SIZES.map(([v, l]) => `<button role="radio" data-size="${v}" aria-checked="${v === size}">${l}</button>`).join('')}</div></div>
+    <section class="glass card" id="sum" style="gap:2px"></section>
+    <div class="spacer"></div>
+    <button class="btn" id="ok">Añadir a ${MEAL_NAME[meal].toLowerCase()}</button>
+  </div>`;
+  $('#back', app).addEventListener('click', () => history.back());
+  $$('[data-size]', app).forEach((b) => b.addEventListener('click', () => { size = +b.dataset.size; $$('[data-size]', app).forEach((x) => x.setAttribute('aria-checked', x === b)); render(); }));
+  $('#ok', app).addEventListener('click', async () => {
+    const day = await dayGet(date);
+    for (const [k] of COURSES) if (pick[k]) day.meals[meal].push({ kind: 'recipe', id: pick[k], servings: k === 'pan' ? 1 : size });
+    await dayPut(day);
+    location.hash = ret;
+    setTimeout(() => toast(`Menú añadido · ${fmt(total())} kcal`), 250);
+  });
+  render();
+}

@@ -8,7 +8,7 @@ import { hoy } from './screens/hoy.js';
 import { progreso, comparar } from './screens/progreso.js';
 import { menus, propuesta, anadir } from './screens/menus.js';
 import { recetaForm, recetaDetalle } from './screens/recetas.js';
-import { despensaRecetas, despensaAlimentos, fichaAlimento, altaManual, escaner, llenar } from './screens/despensa.js';
+import { despensaRecetas, despensaAlimentos, despensaComedor, comedorMenu, fichaAlimento, altaManual, escaner, llenar } from './screens/despensa.js';
 import { perfil, fondo, copia, meta } from './screens/perfil.js';
 
 const app = document.getElementById('app');
@@ -18,6 +18,7 @@ const ONBOARDING = {
   '/test/1': test.paso1,
   '/test/2': test.paso2,
   '/test/3': test.paso3,
+  '/test/dieta': test.pasoDieta,
   '/test/4': test.paso4,
   '/plan': test.plan,
 };
@@ -35,6 +36,8 @@ const ROUTES = [
   [/^\/receta\/([\w-]+)$/, null, (a, p, q, id) => recetaDetalle(a, p, id)],
   [/^\/despensa$/, 'despensa', despensaRecetas],
   [/^\/despensa\/alimentos$/, 'despensa', despensaAlimentos],
+  [/^\/despensa\/comedor$/, 'despensa', despensaComedor],
+  [/^\/comedor\/menu$/, null, comedorMenu],
   [/^\/alimento\/nuevo$/, null, (a, p, q) => altaManual(a, p, q, null)],
   [/^\/alimento\/([\w-]+)\/editar$/, null, (a, p, q, id) => altaManual(a, p, q, id)],
   [/^\/alimento\/([\w-]+)$/, null, (a, p, q, id) => fichaAlimento(a, p, id)],
