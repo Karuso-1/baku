@@ -41,7 +41,7 @@ export function bienvenida(app) {
     <div class="spacer"></div>
     <a class="btn" href="#/entrar">Empezar</a>
     <p class="muted row" style="font-size:12px;justify-content:center;gap:6px">${icon('lock', 14)}Tus fotos se cifran en tu móvil: solo tú puedes verlas</p>
-    <a class="link muted" href="#/test/1" style="font-size:12px;padding:4px;opacity:.8">Usar sin cuenta</a>
+    <div class="row" style="gap:14px;justify-content:center"><a class="link muted" href="#/test/1" style="font-size:12px;padding:4px;opacity:.8">Usar sin cuenta</a><span class="muted" style="opacity:.4;font-size:12px">·</span><a class="link muted" href="#/privacidad" style="font-size:12px;padding:4px;opacity:.8">Privacidad</a></div>
   </div>`;
 }
 

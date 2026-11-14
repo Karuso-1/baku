@@ -271,3 +271,15 @@ h1, h2, h3, p { margin: 0; }
 #brand { position: absolute; top: calc(18px + var(--safe-top)); left: 22px; width: 22px; height: 22px; opacity: 0.55; pointer-events: none; z-index: 2; }
 #brand[hidden] { display: none; }
 html, body { overflow-x: hidden; }
+
+/* ---------- Avisos ---------- */
+.sw { width: 44px; height: 26px; border-radius: 999px; border: 0; position: relative; background: rgba(255,255,255,0.14); flex: none; padding: 0; transition: background .2s; }
+.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 999px; background: var(--crema); transition: transform .2s, background .2s; }
+.sw[aria-checked="true"] { background: var(--crema); }
+.sw[aria-checked="true"]::after { transform: translateX(18px); background: var(--fondo); }
+.sw:disabled { opacity: .4; }
+.mini-sel { height: 34px; border-radius: 999px; padding: 0 12px; font-size: 13px; color: #fff; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); appearance: none; -webkit-appearance: none; font-family: inherit; }
+.mini-sel option { color: #000; }
+.aviso-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+.aviso-row:first-child { border-top: 0; }
+.aviso-row.off .aviso-opts { display: none; }

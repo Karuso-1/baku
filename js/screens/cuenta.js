@@ -40,6 +40,7 @@ function stepEmail(app, fromWelcome) {
     </section>
     <div class="field"><label for="em" class="muted small" style="padding-left:4px">Tu email</label>
       <input id="em" class="input glass flat" type="email" inputmode="email" autocomplete="email" placeholder="tu@correo.com" value="${esc(sessionStorage.getItem('baku-email') || '')}"></div>
+    <label class="row" style="gap:10px;padding:4px;font-size:13px;line-height:1.45;align-items:flex-start"><input type="checkbox" id="ok-priv" style="width:20px;height:20px;accent-color:var(--crema);flex:none;margin-top:1px" ${sessionStorage.getItem('baku-priv') ? 'checked' : ''}><span>Acepto que Baku guarde en mi cuenta mis datos de salud (peso, comidas, fotos cifradas) para hacer la copia. <a href="#/privacidad" style="color:var(--crema);text-decoration:underline">Leer privacidad</a></span></label>
     <div class="spacer"></div>
     <button class="btn" id="go">Enviarme el código</button>
   </div>`;
@@ -48,6 +49,8 @@ function stepEmail(app, fromWelcome) {
   go.addEventListener('click', async () => {
     const email = $('#em', app).value.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Revisa el email');
+    if (!$('#ok-priv', app).checked) return toast('Marca la casilla de privacidad para seguir');
+    sessionStorage.setItem('baku-priv', '1');
     busy(go, true, 'Enviarme el código');
     try {
       await sync.sendCode(email);

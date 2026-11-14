@@ -13,6 +13,9 @@ import { perfil, fondo, copia, meta } from './screens/perfil.js';
 import { cuenta } from './screens/cuenta.js';
 import { startSync } from './sync.js';
 import { showTips } from './tips.js';
+import { avisos } from './screens/avisos.js';
+import { privacidad } from './screens/privacidad.js';
+import { startAvisos } from './avisos.js';
 const TIP_FOR = { '/hoy': 'hoy', '/menus': 'menus', '/despensa': 'despensa', '/despensa/alimentos': 'alimentos', '/progreso': 'progreso' };
 
 const app = document.getElementById('app');
@@ -26,6 +29,7 @@ const ONBOARDING = {
   '/test/4': test.paso4,
   '/plan': test.plan,
   '/entrar': cuenta,
+  '/privacidad': privacidad,
 };
 
 // [patrón, pestaña activa en la barra (o null), pantalla]
@@ -53,6 +57,7 @@ const ROUTES = [
   [/^\/perfil\/copia$/, null, copia],
   [/^\/meta$/, null, meta],
   [/^\/cuenta$/, null, cuenta],
+  [/^\/avisos$/, null, avisos],
 ];
 
 let rendering = 0;
@@ -96,6 +101,7 @@ function go(p) {
 
 async function start() {
   startSync();
+  startAvisos();
   const settings = await getSettings();
   applyTheme(settings);
   const profile = await getProfile();

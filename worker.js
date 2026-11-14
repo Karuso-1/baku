@@ -1,5 +1,7 @@
 // Pequeño servidor de Baku: solo hace de puente con el buscador de Open Food Facts,
 // que no deja buscar directamente desde el navegador. El resto son archivos estáticos.
+const RECORDATORIOS = 'https://ldphxpvybcotiasnxrnf.supabase.co/functions/v1/recordatorios';
+const PUBLIC_KEY = 'sb_publishable_e98MvbewgH4oPcOs86EFIQ_A5xIWOrT';
 const FIELDS = 'code,product_name,product_name_es,brands,nutriments,categories_tags,serving_quantity,quantity,allergens_tags,traces_tags,ingredients_analysis_tags';
 
 export default {
@@ -16,5 +18,11 @@ export default {
       });
     }
     return env.ASSETS.fetch(request);
+  },
+
+  // Toque de cada hora a Supabase: lo mantiene despierto y manda los recordatorios que toquen
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(fetch(RECORDATORIOS, { method: 'POST', headers: { apikey: PUBLIC_KEY } })
+      .then((r) => r.text()).then((t) => console.log('recordatorios', t)).catch((e) => console.log('fallo', String(e))));
   },
 };

@@ -9,6 +9,7 @@ import { dietOf, dietSummary } from '../diet.js';
 import { dietControls } from './onboarding.js';
 import { hasSession, signOut, useLocalData } from '../sync.js';
 import { resetTips } from '../tips.js';
+import { getAvisos, currentSub, permission } from '../avisos.js';
 
 const WORK = { sentado: 'Sentado', depie: 'De pie', fisico: 'Físico' };
 const DAYS = ['0 días', '1–2 días', '3–4 días', '5+ días'];
@@ -29,6 +30,8 @@ async function updateProfile(profile, patch) {
 export async function perfil(app, profile) {
   app.className = '';
   const s = await getSettings();
+  const a = await getAvisos();
+  const avOn = permission() === 'granted' && !!(await currentSub());
   const p = profile.plan;
   const week = planWeek(profile);
   const tw = totalWeeks(profile);
@@ -62,7 +65,9 @@ export async function perfil(app, profile) {
       ${row('image', 'Fondo', s.bgPhoto ? 'Mi foto' : PALETTES[s.palette].name, 'data-go="#/perfil/fondo"')}
       ${row('calendar', 'La semana empieza el', s.weekStart === 1 ? 'Lunes' : 'Domingo', 'data-e="week"')}
       ${row('cloud', 'Cuenta y copia en la nube', hasSession() ? 'Activa' : 'Sin activar', 'data-go="#/cuenta"')}
+      ${row('bell', 'Avisos', a.pausa ? 'En pausa' : avOn ? 'Activados' : 'Desactivados', 'data-go="#/avisos"')}
       ${row('info', 'Volver a ver los consejos', '', 'data-tips="1"')}
+      ${row('shield', 'Privacidad', '', 'data-go="#/privacidad"')}
       ${row('download', 'Copia de seguridad', daysAgo === null ? 'Nunca' : daysAgo === 0 ? 'Hoy' : `Hace ${daysAgo} días`, 'data-go="#/perfil/copia"')}
     </section></div>
     <p class="muted small" style="text-align:center">${hasSession() ? 'Baku · tus datos en este móvil y en tu copia en la nube' : 'Baku · tus datos solo están en este móvil'}</p>

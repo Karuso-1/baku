@@ -9,7 +9,7 @@ const SUPABASE_URL = 'https://ldphxpvybcotiasnxrnf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_e98MvbewgH4oPcOs86EFIQ_A5xIWOrT';
 const BUCKET = 'privado';
 const SYNCED = ['weights', 'foods', 'recipes', 'days', 'photos'];
-const SYNCED_KV = ['profile', 'settings'];
+const SYNCED_KV = ['profile', 'settings', 'avisos'];
 
 // ---------- Cliente (se carga solo cuando hace falta) ----------
 let clientPromise;
@@ -315,6 +315,11 @@ export async function useLocalData() {
 // ---------- Salir y borrar ----------
 export async function signOut() {
   const sb = await client();
+  // Sin cuenta no hay avisos: se quitan de este móvil
+  try {
+    const sub = 'serviceWorker' in navigator ? await (await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 3000))]))?.pushManager?.getSubscription() : null;
+    if (sub) { await sb.from('push_subs').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+  } catch (_) { /* nada */ }
   await sb.auth.signOut({ scope: 'local' }).catch(() => {});
   try { localStorage.removeItem('baku-auth'); } catch (_) { /* nada */ }
   keyCache = null;

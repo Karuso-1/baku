@@ -1,6 +1,6 @@
 // Service worker: guarda la app en el móvil para que abra sin conexión.
 // Cambia VERSION en cada publicación para que el móvil descargue lo nuevo.
-const VERSION = 'baku-v0.6.2';
+const VERSION = 'baku-v0.7.0';
 const FILES = [
   './',
   'index.html',
@@ -19,6 +19,9 @@ const FILES = [
   'js/comedor.js',
   'js/sync.js',
   'js/tips.js',
+  'js/avisos.js',
+  'js/screens/avisos.js',
+  'js/screens/privacidad.js',
   'js/vendor/supabase.js',
   'js/screens/cuenta.js',
   'js/screens/onboarding.js',
@@ -57,4 +60,32 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html')))
   );
+});
+
+// ---------- Recordatorios ----------
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
+  const tipo = d.tipo || 'aviso';
+  e.waitUntil(self.registration.showNotification(d.title || 'Baku', {
+    body: d.body || '',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/badge-96.png',
+    tag: 'baku-' + tipo,
+    data: { url: d.url || '#/hoy', tipo },
+    actions: tipo === 'prueba' ? [] : [{ action: 'silenciar', title: 'No me avises de esto' }],
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const { url, tipo } = e.notification.data || {};
+  const silencio = { pesofoto: 'peso', peso: 'peso', foto: 'foto', semana: 'semana', comidas: 'comidas', volver: 'volver' }[tipo];
+  const hash = e.action === 'silenciar' && silencio ? '#/avisos?silenciar=' + (tipo === 'pesofoto' ? 'peso,foto' : silencio) : (url || '#/hoy');
+  const target = new URL('./' + hash, self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const c = list.find((w) => w.url.startsWith(self.registration.scope));
+    if (c) return c.focus().then((w) => (w || c).navigate(target)).catch(() => self.clients.openWindow(target));
+    return self.clients.openWindow(target);
+  }));
 });
