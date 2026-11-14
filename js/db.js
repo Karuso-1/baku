@@ -1,8 +1,18 @@
 // Base de datos local (IndexedDB). Todo se queda en el móvil.
 const NAME = 'baku';
-const VERSION = 1;
+const VERSION = 2;
 // kv: ajustes y perfil · weights: pesos por fecha · foods, recipes, days, photos: para las siguientes fases
-const STORES = { kv: null, weights: 'date', foods: 'id', recipes: 'id', days: 'date', photos: 'id' };
+const STORES = { kv: null, weights: 'date', foods: 'id', recipes: 'id', days: 'date', photos: 'id', outbox: 'id' };
+export const KEY_PATH = STORES;
+
+// Aviso de cambios para la copia en la nube (lo registra sync.js)
+let onChange = null;
+export const setChangeListener = (fn) => { onChange = fn; };
+const changed = (store, value, key) => {
+  if (!onChange || store === 'outbox') return;
+  const k = key !== undefined ? key : STORES[store] ? value?.[STORES[store]] : undefined;
+  if (k !== undefined) onChange(store, String(k));
+};
 
 let dbPromise;
 function open() {
@@ -35,10 +45,15 @@ async function tx(store, mode, fn) {
   });
 }
 
+const rawPut = (store, value, key) => tx(store, 'readwrite', s => (key === undefined ? s.put(value) : s.put(value, key)));
+const rawDel = (store, key) => tx(store, 'readwrite', s => s.delete(key));
 export const db = {
   get: (store, key) => tx(store, 'readonly', s => s.get(key)),
-  put: (store, value, key) => tx(store, 'readwrite', s => (key === undefined ? s.put(value) : s.put(value, key))),
-  del: (store, key) => tx(store, 'readwrite', s => s.delete(key)),
+  put: async (store, value, key) => { const r = await rawPut(store, value, key); changed(store, value, key); return r; },
+  del: async (store, key) => { const r = await rawDel(store, key); changed(store, null, key); return r; },
+  // Sin aviso: para lo que llega de la nube
+  putRaw: rawPut,
+  delRaw: rawDel,
   all: (store) => tx(store, 'readonly', s => s.getAll()),
   clearAll: async () => {
     for (const name of Object.keys(STORES)) await tx(name, 'readwrite', s => s.clear());

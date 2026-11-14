@@ -1,6 +1,6 @@
 # Baku · app (fase 1)
 
-Web instalable (PWA) para Android. Sin servidor, sin cuentas: los datos se guardan en el navegador del móvil (IndexedDB).
+Web instalable (PWA) para Android. Los datos se guardan en el navegador del móvil (IndexedDB). Copia en la nube opcional con cuenta (Supabase): entrar con un código al email, sincronización entre móviles y fotos cifradas en el móvil con una clave de recuperación que solo tiene el usuario.
 
 ## Qué hace
 - Bienvenida, test de 4 pasos y plan (Mifflin-St Jeor × actividad − déficit, macros, mínimo 1.500 kcal).
@@ -20,6 +20,12 @@ Web instalable (PWA) para Android. Sin servidor, sin cuentas: los datos se guard
 - `js/ui.js` piezas comunes · `js/theme.js` paletas · `js/fill.js` rellenar automático · `js/seed.js` biblioteca de alimentos · `js/diet.js` dietas y alérgenos · `js/comedor.js` platos de comedor
 - `js/screens/` una pantalla por archivo
 - `sw.js`: **sube `VERSION` en cada publicación**
+
+## Supabase
+- `supabase/esquema.sql`: tablas, seguridad por usuario (RLS), carpeta privada de fotos y borrar cuenta. Se pega en SQL Editor.
+- `js/sync.js`: cuenta, cola de cambios, subir/bajar y cifrado AES-GCM. `js/screens/cuenta.js`: pantallas.
+- Las plantillas de correo (Magic Link y Confirm signup) deben incluir `{{ .Token }}` para que llegue el código.
+- Sin SMTP propio, Supabase solo envía correos a los miembros del equipo del proyecto.
 
 ## Publicar
 Cada `git push` a `main` despliega en Cloudflare (Worker `baku`, archivos estáticos con `wrangler.jsonc`).

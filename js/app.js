@@ -10,6 +10,8 @@ import { menus, propuesta, anadir } from './screens/menus.js';
 import { recetaForm, recetaDetalle } from './screens/recetas.js';
 import { despensaRecetas, despensaAlimentos, despensaComedor, comedorMenu, fichaAlimento, altaManual, escaner, llenar } from './screens/despensa.js';
 import { perfil, fondo, copia, meta } from './screens/perfil.js';
+import { cuenta } from './screens/cuenta.js';
+import { startSync } from './sync.js';
 
 const app = document.getElementById('app');
 
@@ -21,6 +23,7 @@ const ONBOARDING = {
   '/test/dieta': test.pasoDieta,
   '/test/4': test.paso4,
   '/plan': test.plan,
+  '/entrar': cuenta,
 };
 
 // [patrón, pestaña activa en la barra (o null), pantalla]
@@ -47,6 +50,7 @@ const ROUTES = [
   [/^\/perfil\/fondo$/, null, fondo],
   [/^\/perfil\/copia$/, null, copia],
   [/^\/meta$/, null, meta],
+  [/^\/cuenta$/, null, cuenta],
 ];
 
 let rendering = 0;
@@ -88,6 +92,7 @@ function go(p) {
 }
 
 async function start() {
+  startSync();
   const settings = await getSettings();
   applyTheme(settings);
   const profile = await getProfile();

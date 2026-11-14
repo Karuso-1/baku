@@ -48,6 +48,12 @@ export const ICON = {
   split: '<rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M12 4v16"/>',
   slider: '<rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M12 2.5v19"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/>',
   dashed: '<circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/>',
+  cloud: '<path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3"/><path d="M16.5 6.5l2.5 2.5"/><path d="M14 9l2 2"/>',
+  copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
+  logout: '<path d="M14 4.5h3.5A1.5 1.5 0 0 1 19 6v12a1.5 1.5 0 0 1-1.5 1.5H14"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h9"/>',
+  mail: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+  sync: '<path d="M19.5 12a7.5 7.5 0 0 1-13.1 5"/><path d="M4.5 12a7.5 7.5 0 0 1 13.1-5"/><path d="M17.6 3.5V7h-3.5"/><path d="M6.4 20.5V17h3.5"/>',
 };
 export const icon = (name, size = 18, sw = 1.9) => svg(ICON[name], size, sw);
 

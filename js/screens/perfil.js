@@ -7,6 +7,7 @@ import { avatar, totalWeeks } from './hoy.js';
 import { PALETTES, applyTheme } from '../theme.js';
 import { dietOf, dietSummary } from '../diet.js';
 import { dietControls } from './onboarding.js';
+import { hasSession, signOut, useLocalData } from '../sync.js';
 
 const WORK = { sentado: 'Sentado', depie: 'De pie', fisico: 'Físico' };
 const DAYS = ['0 días', '1–2 días', '3–4 días', '5+ días'];
@@ -59,9 +60,10 @@ export async function perfil(app, profile) {
     <section class="glass card" style="gap:0;padding:4px 14px">
       ${row('image', 'Fondo', s.bgPhoto ? 'Mi foto' : PALETTES[s.palette].name, 'data-go="#/perfil/fondo"')}
       ${row('calendar', 'La semana empieza el', s.weekStart === 1 ? 'Lunes' : 'Domingo', 'data-e="week"')}
+      ${row('cloud', 'Cuenta y copia en la nube', hasSession() ? 'Activa' : 'Sin activar', 'data-go="#/cuenta"')}
       ${row('download', 'Copia de seguridad', daysAgo === null ? 'Nunca' : daysAgo === 0 ? 'Hoy' : `Hace ${daysAgo} días`, 'data-go="#/perfil/copia"')}
     </section></div>
-    <p class="muted small" style="text-align:center">Baku · tus datos solo están en este móvil</p>
+    <p class="muted small" style="text-align:center">${hasSession() ? 'Baku · tus datos en este móvil y en tu copia en la nube' : 'Baku · tus datos solo están en este móvil'}</p>
   </div>`;
 
   const rerender = async () => perfil(app, await getProfile());
@@ -285,20 +287,26 @@ export async function copia(app) {
         const data = JSON.parse(await input.files[0].text());
         if (data.app !== 'baku') throw new Error();
         if (!confirm('Se sustituirán los datos de este móvil por los de la copia. ¿Seguir?')) return;
+        // Si hay cuenta, se conserva la clave de las fotos y la copia restaurada pasa a ser la de la nube
+        const keep = hasSession() ? await db.get('kv', 'vaultKey') : null;
         await db.clearAll();
+        if (keep) await db.putRaw('kv', keep, 'vaultKey');
         for (const [st, rows] of Object.entries(data.stores)) for (const r of await unwalk(rows)) await db.put(st, r);
         await db.put('kv', data.kv.profile, 'profile');
         const settings = await unwalk(data.kv.settings);
         await db.put('kv', settings, 'settings');
         applyTheme(settings);
         toast('Copia restaurada'); location.hash = '#/hoy';
+        if (keep) useLocalData().catch(() => toast('No se pudo subir a la nube: se intentará luego'));
       } catch (_) { toast('Ese archivo no es una copia de Baku'); }
     };
     input.click();
   });
   $('#rem', app).addEventListener('click', async () => { await saveSettings({ backupReminder: !s.backupReminder }); copia(app); });
   $('#wipe', app).addEventListener('click', async () => {
-    if (!confirm('¿Borrar todos tus datos de Baku? No se puede deshacer.')) return;
+    const cloud = hasSession();
+    if (!confirm(cloud ? '¿Borrar todos los datos de Baku de este móvil? Se cerrará tu sesión. Tu copia en la nube no se toca: puedes volver a entrar y recuperarla.' : '¿Borrar todos tus datos de Baku? No se puede deshacer.')) return;
+    if (cloud) await signOut();
     await db.clearAll(); applyTheme({}); location.hash = '#/bienvenida'; toast('Datos borrados');
   });
 }

@@ -40,7 +40,8 @@ export function bienvenida(app) {
     <p class="muted" style="font-size:14px;line-height:1.4;max-width:280px">Tu dieta, tus menús y tu progreso en un solo sitio.</p>
     <div class="spacer"></div>
     <a class="btn" href="#/test/1">Empezar</a>
-    <p class="muted row" style="font-size:12px;justify-content:center;gap:6px">${icon('lock', 14)}Tus datos se quedan solo en tu móvil</p>
+    <a class="link" href="#/entrar" style="font-size:14px;padding:6px">Ya tengo cuenta · Entrar</a>
+    <p class="muted row" style="font-size:12px;justify-content:center;gap:6px">${icon('lock', 14)}Tus datos, en tu móvil. La copia en la nube es opcional</p>
   </div>`;
 }
 
