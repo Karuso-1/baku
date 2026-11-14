@@ -232,6 +232,7 @@ h1, h2, h3, p { margin: 0; }
 .hscroll::-webkit-scrollbar { display: none; }
 .chip-s { height: 34px; padding: 0 13px; border-radius: 999px; font-size: 12px; font-weight: 500; flex: none; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
 .chip-s[aria-pressed="true"], .chip-s[aria-current="true"] { background: var(--crema); color: var(--fondo); font-weight: 600; border-color: transparent; }
+.screen > .search, .sheet-body > .search { flex: none; }
 .search { height: 44px; min-height: 44px; border-radius: 999px; display: flex; align-items: center; gap: 8px; padding: 0 14px; flex: 1 1 auto; }
 .search input { flex: 1; border: 0; background: transparent; outline: none; font-size: 15px; min-width: 0; }
 .search input::placeholder { color: rgba(227,220,205,0.7); }
