@@ -1,4 +1,5 @@
 // Datos de la app: alimentos, recetas, días, pesos, fotos y ajustes.
+import { LIB_RECIPES, SAMPLE_EXTRAS } from './recetario.js';
 import { db, getProfile, saveProfile } from './db.js';
 import { SEED, SEED_RECIPES, CATALOG_VERSION } from './seed.js';
 import { COMEDOR } from './comedor.js';
@@ -69,7 +70,27 @@ export async function ensureSeed() {
     const items = c.items.map(([n, g]) => ({ foodId: byName[n]?.id, g })).filter((it) => it.foodId);
     await db.put('recipes', { id: uid(), key: c.key, name: c.name, course: c.course, meals: ['comida'], servings: 1, photo: null, comedor: true, createdAt: 0, items });
   }
-  await saveSettings({ seeded: true, catalog: CATALOG_VERSION });
+  // Recetario con fotos: ids fijos ('lib-…') para no duplicar entre móviles; si borras una, no vuelve
+  const s2 = await getSettings();
+  const added = new Set(s2.libRecipes || []);
+  for (const r of LIB_RECIPES) {
+    if (added.has(r.key)) continue;
+    const items = r.items.map(([n, g]) => ({ foodId: byName[n]?.id, g })).filter((it) => it.foodId);
+    if (items.length === r.items.length && !(await db.get('recipes', `lib-${r.key}`))) {
+      await db.put('recipes', { id: `lib-${r.key}`, key: r.key, name: r.name, meals: r.meals, servings: r.servings, items, steps: r.steps, img: r.key, photo: null, sample: true, lib: true, createdAt: 1 });
+    }
+    added.add(r.key);
+  }
+  // Las recetas de ejemplo de siempre reciben foto y pasos (si no les has puesto los tuyos)
+  for (const r of await db.all('recipes')) {
+    const x = r.sample && !r.lib && SAMPLE_EXTRAS[r.name];
+    if (!x) continue;
+    let changed = false;
+    if (x.img && !r.img && !r.photo) { r.img = x.img; changed = true; }
+    if (!r.steps?.length) { r.steps = x.steps; changed = true; }
+    if (changed) await db.put('recipes', r);
+  }
+  await saveSettings({ seeded: true, catalog: CATALOG_VERSION, libRecipes: [...added] });
 }
 
 // ---------- Búsqueda ----------

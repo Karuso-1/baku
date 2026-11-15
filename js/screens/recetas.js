@@ -5,6 +5,7 @@ import { MEALS, MEAL_NAME, maps, recipeGet, recipePut, recipeDel, recipeServing,
 import { dietCard, recipeTags } from '../diet.js';
 import { foodAmountSheet } from './menus.js';
 import { CATEGORIES } from '../seed.js';
+import { recipeImg, photoCredit } from '../recetario.js';
 
 const WD = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -20,8 +21,8 @@ export async function recetaForm(app, profile, id) {
     app.innerHTML = html`<div class="screen">
       <div class="between"><div class="row" style="gap:12px"><button class="icon-btn glass flat" id="x" aria-label="Cerrar">${icon('close', 16, 2.2)}</button><h1 style="font-size:20px;font-weight:600">${existing ? 'Editar receta' : 'Nueva receta'}</h1></div>
         ${existing ? `<button class="icon-btn glass flat" id="del" aria-label="Borrar receta" style="color:var(--oxido-claro)">${icon('trash', 17)}</button>` : ''}</div>
-      <button id="foto" class="photo" style="height:${photo ? 150 : 96}px;border:${photo ? '0' : '1.5px dashed rgba(242,234,219,0.5)'};padding:0;color:var(--crema);flex:none">
-        ${photo ? `<img src="${blobUrl(photo)}" alt="Foto del plato">` : `<span class="empty-ph col" style="gap:6px;color:var(--crema)">${icon('camera', 22)}<span style="font-size:13px;font-weight:600">Añadir foto del plato</span><span class="muted small">Opcional · se verá al abrir la receta</span></span>`}</button>
+      <button id="foto" class="photo" style="height:${photo || r.img ? 150 : 96}px;border:${photo || r.img ? '0' : '1.5px dashed rgba(242,234,219,0.5)'};padding:0;color:var(--crema);flex:none">
+        ${photo || r.img ? `<img src="${recipeImg({ photo, img: r.img }, blobUrl)}" alt="Foto del plato">` : `<span class="empty-ph col" style="gap:6px;color:var(--crema)">${icon('camera', 22)}<span style="font-size:13px;font-weight:600">Añadir foto del plato</span><span class="muted small">Opcional · se verá al abrir la receta</span></span>`}</button>
       <div class="field"><label for="nombre" class="muted small" style="padding-left:4px">Nombre del plato</label>
         <input id="nombre" class="input glass flat" type="text" value="${esc(r.name)}" placeholder="Pollo a la plancha con patatas" style="font-size:17px;font-weight:600"></div>
       <div class="between" style="flex-wrap:wrap;gap:8px">
@@ -39,6 +40,8 @@ export async function recetaForm(app, profile, id) {
         }).join('')}
         <button class="link row" id="add" style="gap:6px;padding-top:10px;font-size:14px">${icon('plus', 16, 2.4)}Añadir alimento</button>
       </section>
+      <div class="field"><label for="pasos" class="muted small" style="padding-left:4px">Preparación · opcional, un paso por línea</label>
+        <textarea id="pasos" class="input glass flat" rows="4" placeholder="Cuece la pasta…&#10;Mientras, dora el pollo…" style="height:auto;padding:12px 14px;font-size:14px;line-height:1.45;resize:vertical">${esc((r.steps || []).join('\n'))}</textarea></div>
       <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
         <span class="col"><span class="muted small">Por ración</span><span class="num" style="font-size:22px;font-weight:600">${fmt(per.kcal)} <span class="unit">kcal</span></span></span>
         <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', per.p], ['Hidratos', per.h], ['Grasas', per.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
@@ -48,6 +51,7 @@ export async function recetaForm(app, profile, id) {
     const check = () => { $('#save', app).disabled = !(r.name.trim() && r.items.length); };
     $('#x', app).addEventListener('click', () => history.back());
     $('#nombre', app).addEventListener('input', (e) => { r.name = e.target.value; check(); });
+    $('#pasos', app).addEventListener('input', (e) => { r.steps = e.target.value.split('\n').map((t) => t.trim()).filter(Boolean); });
     $$('[data-meal]', app).forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.meal;
       r.meals = r.meals.includes(k) ? r.meals.filter((x) => x !== k) : [...r.meals, k];
@@ -108,7 +112,7 @@ export async function recetaDetalle(app, profile, id) {
   app.style.paddingTop = '0';
   app.innerHTML = html`<div class="screen" style="gap:12px">
     <div style="position:relative;margin:0 -16px;height:280px;flex:none">
-      ${r.photo ? `<img src="${blobUrl(r.photo)}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div class="empty-ph" style="height:100%;background:rgba(255,255,255,0.05)">${icon('menus', 54, 1.4)}</div>`}
+      ${recipeImg(r, blobUrl) ? `<img src="${recipeImg(r, blobUrl)}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div class="empty-ph" style="height:100%;background:rgba(255,255,255,0.05)">${icon('menus', 54, 1.4)}</div>`}
       <span style="position:absolute;inset:0;background:linear-gradient(transparent 55%, var(--fondo))"></span>
       <div class="between" style="position:absolute;left:16px;right:16px;top:calc(52px + var(--safe-top))">
         <button class="icon-btn glass flat" id="back" aria-label="Volver" style="background:rgba(20,40,32,0.35)">${icon('back', 18, 2)}</button>
@@ -127,6 +131,11 @@ export async function recetaDetalle(app, profile, id) {
       <div class="between" style="padding-bottom:4px"><h2 class="h2">Alimentos</h2><span class="muted small num">Receta entera · ${fmt(total)} kcal</span></div>
       ${r.items.map((it) => { const f = m.foods[it.foodId]; return `<a class="list-row" href="#/alimento/${it.foodId}" style="text-decoration:none;color:#fff"><span class="grow ellipsis" style="font-size:14px">${esc(f?.name || 'Eliminado')}</span><span class="muted num" style="font-size:13px">${it.g} g</span><span class="num" style="width:62px;text-align:right;font-size:13px;font-weight:600">${f ? fmt(foodNutr(f, it.g).kcal) : 0} <span class="unit">kcal</span></span></a>`; }).join('')}
     </section>
+    ${r.steps?.length ? `<section class="glass card" style="gap:10px;padding:12px 14px 14px">
+      <h2 class="h2">Preparación</h2>
+      <ol class="col" style="gap:10px;margin:0;padding:0;list-style:none">${r.steps.map((t, i) => `<li class="row" style="gap:10px;align-items:flex-start"><span class="num" style="flex:none;width:22px;height:22px;border-radius:999px;background:rgba(242,234,219,0.14);color:var(--crema);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${i + 1}</span><span style="font-size:14px;line-height:1.45">${esc(t)}</span></li>`).join('')}</ol>
+    </section>` : ''}
+    ${photoCredit(r) ? `<p class="muted small" style="text-align:center;padding:0 8px">${photoCredit(r)}</p>` : ''}
     <div class="spacer"></div>
     <button class="btn" id="add">${icon('plus', 18, 2.2)}Añadir a un día</button>
   </div>`;

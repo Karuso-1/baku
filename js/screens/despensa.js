@@ -7,6 +7,7 @@ import { COURSES, SIZES } from '../comedor.js';
 import { CATEGORIES, SEED } from '../seed.js';
 import { foodAmountSheet } from './menus.js';
 import { db } from '../db.js';
+import { recipeImg } from '../recetario.js';
 
 function header(tab) {
   const t = (k, href, l) => `<a role="tab" href="${href}" aria-selected="${tab === k}" style="border-radius:999px;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:13px;${tab === k ? 'background:var(--crema);color:var(--fondo);font-weight:600' : 'color:#fff'}">${l}</a>`;
@@ -22,21 +23,25 @@ export async function despensaRecetas(app) {
   if (!s.filled) { location.hash = '#/llenar'; return; }
   const m = await maps();
   let filter = sessionStorage.getItem('baku-filtro-recetas') || 'todas';
+  let q = '';
   const render = () => {
-    const list = Object.values(m.recipes).filter((r) => !r.comedor && (filter === 'todas' || r.meals?.includes(filter))).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const base = Object.values(m.recipes).filter((r) => !r.comedor && (filter === 'todas' || r.meals?.includes(filter))).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || a.name.localeCompare(b.name));
+    const list = q ? searchSort(base, q, (r) => [r.name, r.items.map((it) => m.foods[it.foodId]?.name).join(' ')]) : base;
     $('#grid', app).innerHTML = list.length ? list.map((r) => html`<a href="#/receta/${r.id}" class="glass" style="border-radius:18px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:#fff;box-shadow:none">
-      <div style="height:96px;overflow:hidden">${r.photo ? `<img src="${blobUrl(r.photo)}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div class="empty-ph" style="background:rgba(255,255,255,0.06)">${icon('menus', 30, 1.6)}</div>`}</div>
+      <div style="height:96px;overflow:hidden">${recipeImg(r, blobUrl) ? `<img src="${recipeImg(r, blobUrl)}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover">` : `<div class="empty-ph" style="background:rgba(255,255,255,0.06)">${icon('menus', 30, 1.6)}</div>`}</div>
       <div class="col" style="padding:8px 10px 10px;gap:2px"><span style="font-size:13px;font-weight:600;line-height:1.25">${esc(r.name)}</span><span class="num muted small">${fmt(recipeServing(r, m.foods).kcal)} kcal / ración</span></div></a>`).join('')
-      : `<p class="muted" style="grid-column:1/-1;text-align:center;padding:30px 0;font-size:13px">No hay recetas aquí todavía.</p>`;
+      : `<p class="muted" style="grid-column:1/-1;text-align:center;padding:30px 0;font-size:13px">${q ? 'Ninguna receta coincide.' : 'No hay recetas aquí todavía.'}</p>`;
     $('#count', app).textContent = `${list.length} ${list.length === 1 ? 'receta' : 'recetas'}`;
   };
   app.innerHTML = html`<div class="screen">${header('recetas')}
     <div class="row" style="justify-content:space-between;gap:6px" role="tablist" aria-label="Filtrar por comida">
       ${[['todas', 'Todas'], ...MEALS.map(([k, l]) => [k, l])].map(([k, l]) => `<button class="chip-s" data-f="${k}" aria-pressed="${k === filter}" style="padding:0 10px">${l}</button>`).join('')}</div>
+    <label class="search glass flat">${icon('search', 16, 2)}<input id="qr" type="search" placeholder="Buscar receta o ingrediente" aria-label="Buscar receta"></label>
     <span class="muted small" id="count" style="padding:0 4px"></span>
     <div id="grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"></div>
     <a class="btn small ghost" href="#/receta/nueva">${icon('plus', 16, 2.2)}Nueva receta</a>
   </div>`;
+  $('#qr', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
   $$('[data-f]', app).forEach((b) => b.addEventListener('click', () => { filter = b.dataset.f; sessionStorage.setItem('baku-filtro-recetas', filter); $$('[data-f]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); }));
   render();
 }
