@@ -92,15 +92,22 @@ export async function despensaAlimentos(app) {
   let q = '';
   const open = new Set();
   let offTimer, offSeq = 0;
+  // El orden se fija al entrar: marcar me gusta / no me gusta no mueve la lista mientras estás en ella
+  const rank = Object.fromEntries(Object.values(m.foods).map((f) => [f.id, f.hidden ? 2 : f.liked ? 0 : 1]));
+  const rankOf = (f) => rank[f.id] ?? 1;
   const row = (f, i) => {
     const op = f.hidden ? 'opacity:.5' : '';
     const bad = !f.hidden && conflicts(tagsOf([f]), m.diet).length;
     const sub = f.hidden ? 'Oculto · no saldrá en propuestas' : bad ? `<span style="color:var(--oxido-claro)">No encaja con tu dieta</span> · ${fmt(f.kcal)} kcal` : `${fmt(f.kcal)} kcal / 100 g${f.brand ? ' · ' + esc(f.brand) : ''}`;
     const al = allergenRow(tagsOf([f]), 12);
+    // Un solo botón que va rotando: nada → me gusta → no me gusta (oculto) → nada
+    const heart = `<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>`;
     const btn = f.hidden
-      ? `<button class="icon-btn plain" data-show="${f.id}" aria-label="Volver a mostrar ${esc(f.name)}" style="color:var(--apagado)">${icon('eyeoff', 17)}</button>`
-      : `<button class="icon-btn plain" data-like="${f.id}" aria-pressed="${!!f.liked}" aria-label="${f.liked ? 'Quitar de me gusta' : 'Me gusta'}: ${esc(f.name)}" style="color:${f.liked ? 'var(--crema)' : 'var(--apagado)'}">${f.liked ? `<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>` : icon('heart', 17)}</button>`;
-    return `<div class="list-row" style="padding:5px 0;${i ? '' : 'border-top:0'}"><a href="#/alimento/${f.id}" class="col grow" style="min-width:0;text-decoration:none;color:#fff;${op}"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(f.name)}</span><span class="row" style="gap:6px;min-width:0"><span class="num muted small ellipsis">${sub}</span>${al ? `<span class="row muted" style="gap:3px;flex:none">${al}</span>` : ''}</span></a>${btn}</div>`;
+      ? `<button class="icon-btn plain" data-cycle="${f.id}" aria-label="${esc(f.name)}: no te gusta. Toca para dejarlo sin marcar" style="color:var(--apagado)">${icon('eyeoff', 17)}</button>`
+      : f.liked
+        ? `<button class="icon-btn plain" data-cycle="${f.id}" aria-label="${esc(f.name)}: te gusta. Toca para marcar que no te gusta" style="color:var(--crema)">${heart}</button>`
+        : `<button class="icon-btn plain" data-cycle="${f.id}" aria-label="Me gusta: ${esc(f.name)}" style="color:var(--apagado)">${icon('heart', 17)}</button>`;
+    return `<div class="list-row" data-row="${f.id}" data-i="${i}" style="padding:5px 0;${i ? '' : 'border-top:0'}"><a href="#/alimento/${f.id}" class="col grow" style="min-width:0;text-decoration:none;color:#fff;${op}"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(f.name)}</span><span class="row" style="gap:6px;min-width:0"><span class="num muted small ellipsis">${sub}</span>${al ? `<span class="row muted" style="gap:3px;flex:none">${al}</span>` : ''}</span></a>${btn}</div>`;
   };
   const render = () => {
     const inCat = Object.values(m.foods).filter((f) => cat === 'Todas' || f.cat === cat);
@@ -111,12 +118,12 @@ export async function despensaAlimentos(app) {
         <div class="between" style="padding:0 4px 2px 0"><h2 class="h2">En tu despensa</h2><span class="muted small num">${hits.length}${hits.length === 60 ? '+' : ''}</span></div>${hits.map(row).join('')}</section>`
         : `<p class="muted small" style="text-align:center;padding:8px">No está en tu despensa.</p>`;
     } else {
-      const groups = (cat === 'Todas' ? CATEGORIES : [cat]).map((c) => [c, inCat.filter((f) => f.cat === c).sort((a, b) => (a.hidden - b.hidden) || (b.liked - a.liked) || a.name.localeCompare(b.name))]).filter(([, l]) => l.length);
+      const groups = (cat === 'Todas' ? CATEGORIES : [cat]).map((c) => [c, inCat.filter((f) => f.cat === c).sort((a, b) => (rankOf(a) - rankOf(b)) || a.name.localeCompare(b.name))]).filter(([, l]) => l.length);
       // Sin búsqueda y con "Todas": cada categoría enseña sus primeros y un botón para ver el resto
       $('#groups', app).innerHTML = groups.map(([c, l]) => {
         const cut = cat === 'Todas' && !open.has(c) && l.length > 8;
         return html`<section class="glass card" style="gap:0;padding:10px 10px 6px 14px">
-        <div class="between" style="padding:0 4px 2px 0"><h2 class="h2">${c}</h2><span class="muted small num">${l.length} · ${l.filter((f) => f.liked).length} te gustan</span></div>${(cut ? l.slice(0, 6) : l).map(row).join('')}
+        <div class="between" style="padding:0 4px 2px 0"><h2 class="h2">${c}</h2><span class="muted small num" data-count="${c}">${l.length} · ${l.filter((f) => f.liked).length} te gustan</span></div>${(cut ? l.slice(0, 6) : l).map(row).join('')}
         ${cut ? `<button class="link" data-open="${c}" style="padding:10px 0 6px;font-size:13px;text-align:left">Ver los ${l.length}</button>` : ''}</section>`;
       }).join('') || `<p class="muted" style="text-align:center;padding:20px 0;font-size:13px">No hay alimentos en esta categoría.</p>`;
       $$('[data-open]', app).forEach((b) => b.addEventListener('click', () => { open.add(b.dataset.open); render(); }));
@@ -141,9 +148,26 @@ export async function despensaAlimentos(app) {
       }, 500);
     }
   };
-  const bindRows = () => {
-    $$('[data-like]', app).forEach((b) => b.addEventListener('click', async () => { const f = m.foods[b.dataset.like]; f.liked = !f.liked; await foodPut(f); render(); }));
-    $$('[data-show]', app).forEach((b) => b.addEventListener('click', async () => { const f = m.foods[b.dataset.show]; f.hidden = false; await foodPut(f); render(); }));
+  const bindRows = (root = app) => {
+    $$('[data-cycle]', root).forEach((b) => b.addEventListener('click', async () => {
+      const f = m.foods[b.dataset.cycle];
+      if (f.hidden) { f.hidden = false; f.liked = false; }
+      else if (f.liked) { f.liked = false; f.hidden = true; toast('No te gusta · no saldrá en propuestas'); }
+      else f.liked = true;
+      if (navigator.vibrate) navigator.vibrate(5);
+      await foodPut(f);
+      // Se cambia solo esa fila, sin volver a ordenar
+      const old = app.querySelector(`[data-row="${f.id}"]`);
+      if (old) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = row(f, +old.dataset.i);
+        const fresh = tmp.firstElementChild;
+        old.replaceWith(fresh);
+        bindRows(fresh);
+      }
+      const cnt = app.querySelector(`[data-count="${f.cat}"]`);
+      if (cnt) { const l = Object.values(m.foods).filter((x) => x.cat === f.cat); cnt.textContent = `${l.length} · ${l.filter((x) => x.liked).length} te gustan`; }
+    }));
   };
   app.innerHTML = html`<div class="screen">${header('alimentos')}
     <div class="row" style="gap:8px"><label class="search glass flat">${icon('search', 16, 2)}<input id="q" type="search" placeholder="Buscar entre ${Object.keys(m.foods).length} alimentos" aria-label="Buscar alimento"></label>
@@ -151,7 +175,7 @@ export async function despensaAlimentos(app) {
     <div class="hscroll">${['Todas', ...CATEGORIES].map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === cat}">${c}</button>`).join('')}</div>
     <div id="groups" class="col" style="gap:12px"></div>
     <div id="off"></div>
-    <span class="muted small" style="text-align:center">Los que te gustan salen primero en las propuestas. Los ocultos, nunca.</span>
+    <span class="muted small" style="text-align:center;line-height:1.4">Toca el corazón una vez si te gusta y otra vez si no te gusta. La tercera lo deja sin marcar.<br>Los que te gustan salen primero en las propuestas; los que no, nunca.</span>
     <a class="btn small ghost" href="#/alimento/nuevo">${icon('plus', 16, 2.2)}Añadir a mano</a>
   </div>`;
   $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
