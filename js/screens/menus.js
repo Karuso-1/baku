@@ -76,7 +76,7 @@ export async function menus(app, profile, params) {
 
     <section class="glass card" style="gap:8px">
       <div class="between"><span class="col"><span class="h2">${date === today ? 'Hoy' : WD[parse(date).getDay()]} · ${short(date)}</span><span class="muted small num">${fmt(planned.kcal)} de ${fmt(goal)} kcal planificadas</span></span>
-      ${circleBtn('more', 'Opciones del día', 'id="opts"')}</div>
+      <div class="row" style="gap:6px">${circleBtn('upload', 'Compartir el menú en PDF', 'id="pdf"')}${circleBtn('more', 'Opciones del día', 'id="opts"')}</div></div>
       ${tube('H', planned.kcal, goal)}
     </section>
 
@@ -114,13 +114,15 @@ export async function menus(app, profile, params) {
   $('#fillDay', app)?.addEventListener('click', () => proposeDays([date]));
   $$('[data-ayer]', app).forEach((b) => b.addEventListener('click', () => { const k = b.dataset.ayer; day.meals[k] = JSON.parse(JSON.stringify(prev.meals[k])); save(); toast(`${MEAL_NAME[k]} como ayer`); }));
   $('#ayerTodo', app)?.addEventListener('click', () => { day.meals = JSON.parse(JSON.stringify(prev.meals)); day.done = {}; save(); toast('Copiado lo de ayer'); });
+  $('#pdf', app).addEventListener('click', () => exportSheet(profile, date, days));
   $('#opts', app).addEventListener('click', () => {
     sheet('Opciones del día', html`<div class="col">
-      ${[['fd', 'calendar', 'Rellenar este día', 'Con tus recetas y favoritos'], ['fw', 'menus', 'Rellenar la semana', 'Solo los huecos, desde hoy'], ['cp', 'swap', 'Copiar este día a…', 'Otro día de la semana'], ['rp', 'chevl', 'Repetir la semana anterior', 'Copia los 7 días'], ['cl', 'trash', 'Vaciar el día', 'Quita todos los platos']]
+      ${[['pdf', 'upload', 'Compartir en PDF', 'El día o la semana, para WhatsApp'], ['fd', 'calendar', 'Rellenar este día', 'Con tus recetas y favoritos'], ['fw', 'menus', 'Rellenar la semana', 'Solo los huecos, desde hoy'], ['cp', 'swap', 'Copiar este día a…', 'Otro día de la semana'], ['rp', 'chevl', 'Repetir la semana anterior', 'Copia los 7 días'], ['cl', 'trash', 'Vaciar el día', 'Quita todos los platos']]
         .map(([id, ic, t, s]) => `<button data-o="${id}" class="list-row" style="background:none;border-left:0;border-right:0;border-bottom:0;color:${id === 'cl' ? 'var(--oxido-claro)' : '#fff'};text-align:left;gap:12px"><span class="title-ic glass flat" style="width:36px;height:36px">${icon(ic, 17)}</span><span class="col"><span style="font-size:15px;font-weight:500">${t}</span><span class="muted small">${s}</span></span></button>`).join('')}</div>`, {
       onMount: ({ el, close }) => $$('[data-o]', el).forEach((b) => b.addEventListener('click', async () => {
         const o = b.dataset.o;
         close();
+        if (o === 'pdf') setTimeout(() => exportSheet(profile, date, days), 230);
         if (o === 'fd') proposeDays([date]);
         if (o === 'fw') proposeDays(days.filter((d) => d >= today));
         if (o === 'cl') { day.meals = emptyDay(date).meals; day.done = {}; save(); }
@@ -139,6 +141,45 @@ export async function menus(app, profile, params) {
         }), 230);
       })),
     });
+  });
+}
+
+// ---------- Compartir el menú en PDF ----------
+function exportSheet(profile, date, days) {
+  let scope = sessionStorage.getItem('baku-pdf-scope') || 'semana';
+  let withRecipes = localStorage.getItem('baku-pdf-recetas') !== '0';
+  let withKcal = localStorage.getItem('baku-pdf-kcal') === '1';
+  const sw = (id, on, label) => `<button class="sw" role="switch" id="${id}" aria-checked="${on}" aria-label="${label}"></button>`;
+  const line = (id, on, t, sub) => `<div class="between" style="gap:12px"><span class="col"><span style="font-size:15px;font-weight:500">${t}</span><span class="muted small">${sub}</span></span>${sw(id, on, t)}</div>`;
+  sheet('Compartir el menú', html`
+    <div class="seg glass flat" role="radiogroup" aria-label="Qué compartir" style="height:42px">
+      <button role="radio" data-sc="dia" aria-checked="${scope === 'dia'}" style="font-size:13px">${date === todayISO() ? 'Hoy' : WD[parse(date).getDay()] + ' ' + parse(date).getDate()}</button>
+      <button role="radio" data-sc="semana" aria-checked="${scope === 'semana'}" style="font-size:13px">Toda la semana</button></div>
+    ${line('rc', withRecipes, 'Incluir las recetas', 'Ingredientes y pasos, para quien cocine')}
+    ${line('kc', withKcal, 'Mostrar las calorías', 'Si no, solo los platos')}
+    <p class="muted small" style="line-height:1.4">Se crea un PDF con una tabla. Desde el menú de compartir puedes mandarlo por WhatsApp.</p>
+    <button class="btn" id="go">${icon('upload', 18, 2)}Crear PDF</button>`, {
+    onMount: ({ el, close }) => {
+      $$('[data-sc]', el).forEach((b) => b.addEventListener('click', () => { scope = b.dataset.sc; sessionStorage.setItem('baku-pdf-scope', scope); $$('[data-sc]', el).forEach((x) => x.setAttribute('aria-checked', x === b)); }));
+      const flip = (id, set) => $('#' + id, el).addEventListener('click', (e) => { const v = e.currentTarget.getAttribute('aria-checked') !== 'true'; e.currentTarget.setAttribute('aria-checked', String(v)); set(v); });
+      flip('rc', (v) => { withRecipes = v; localStorage.setItem('baku-pdf-recetas', v ? '1' : '0'); });
+      flip('kc', (v) => { withKcal = v; localStorage.setItem('baku-pdf-kcal', v ? '1' : '0'); });
+      $('#go', el).addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true; btn.textContent = 'Preparando…';
+        try {
+          const { menuPdf, shareOrDownload } = await import('../exportar.js');
+          const pdf = await menuPdf({ dates: scope === 'dia' ? [date] : days, name: profile.name, recipes: withRecipes, kcal: withKcal });
+          if (!pdf) { btn.disabled = false; btn.textContent = 'Crear PDF'; return toast(scope === 'dia' ? 'Este día no tiene nada planificado' : 'Esta semana no tiene nada planificado'); }
+          close();
+          const res = await shareOrDownload(pdf, scope === 'dia' ? 'Mi menú de hoy' : 'Mi menú de la semana');
+          if (res === 'downloaded') toast('PDF descargado');
+        } catch (err) {
+          btn.disabled = false; btn.textContent = 'Crear PDF';
+          toast(err.message || 'No se pudo crear el PDF');
+        }
+      });
+    },
   });
 }
 
