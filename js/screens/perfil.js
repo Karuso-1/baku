@@ -1,5 +1,5 @@
 // Perfil y ajustes: datos, plan, fondo, copia de seguridad, pausa y meta alcanzada.
-import { html, icon, sheet, ruler, $, $$, toast, esc, pickImage, resizeImage, blobUrl, circleLink } from '../ui.js';
+import { html, icon, sheet, ruler, $, $$, toast, esc, pickImage, resizeImage, blobUrl, circleLink, APP_VERSION } from '../ui.js';
 import { fmt, fmtDate, todayISO, computePlan, activityFactor, LEVEL_NAMES, bmi } from '../plan.js';
 import { db, saveProfile, getProfile } from '../db.js';
 import { getSettings, saveSettings, weightsAll, photosByWeek, planWeek, addDays, parse, recipesAll } from '../store.js';
@@ -52,6 +52,7 @@ export async function perfil(app, profile) {
         <span class="col"><span class="muted small">Ritmo</span><span class="num" style="font-size:18px;font-weight:600">${profile.goal === 'mantener' ? '—' : fmt(profile.rate, 2).replace(/0$/, '') + ' <span class="unit">kg/sem</span>'}</span></span>
         <span class="col"><span class="muted small">Al día</span><span class="num" style="font-size:18px;font-weight:600">${fmt(p.kcal)} <span class="unit">kcal</span></span></span></div>
       <div class="num row" style="gap:6px;font-size:12px"><span class="pill">P ${p.protein} g</span><span class="pill">H ${p.carbs} g</span><span class="pill">G ${p.fat} g</span></div>
+      ${profile.tdeeAdjust ? `<div class="between"><span class="muted small num">Ajustada con tus datos: ${profile.tdeeAdjust > 0 ? '+' : '−'}${fmt(Math.abs(profile.tdeeAdjust))} kcal de gasto</span><button class="link" id="unadapt" style="font-size:12px">Quitar ajuste</button></div>` : ''}
       <div class="row" style="gap:8px"><button class="btn small ghost grow" id="goal">Cambiar objetivo</button><button class="btn small ghost" id="pause" style="width:auto;padding:0 16px">${icon('pause', 15, 2.2)}${s.pause ? 'En pausa' : 'Pausar'}</button></div>
     </section>
 
@@ -68,13 +69,15 @@ export async function perfil(app, profile) {
       ${row('bell', 'Avisos', a.pausa ? 'En pausa' : avOn ? 'Activados' : 'Desactivados', 'data-go="#/avisos"')}
       ${row('info', 'Volver a ver los consejos', '', 'data-tips="1"')}
       ${row('shield', 'Privacidad', '', 'data-go="#/privacidad"')}
+      ${row('mail', 'Enviar opinión o un fallo', '', 'data-fb="1"')}
       ${row('download', 'Copia de seguridad', daysAgo === null ? 'Nunca' : daysAgo === 0 ? 'Hoy' : `Hace ${daysAgo} días`, 'data-go="#/perfil/copia"')}
     </section></div>
-    <p class="muted small" style="text-align:center">${hasSession() ? 'Baku · tus datos en este móvil y en tu copia en la nube' : 'Baku · tus datos solo están en este móvil'}</p>
+    <p class="muted small" style="text-align:center;line-height:1.5">Baku ${APP_VERSION}<br>${hasSession() ? 'Tus datos en este móvil y en tu copia en la nube' : 'Tus datos solo están en este móvil'}</p>
   </div>`;
 
   const rerender = async () => perfil(app, await getProfile());
   $$('[data-go]', app).forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.go; }));
+  $('[data-fb]', app).addEventListener('click', () => feedback());
   $('[data-tips]', app).addEventListener('click', async () => { await resetTips(); location.hash = '#/hoy'; });
   $('#foto', app).addEventListener('click', () => sheet('Foto de perfil', `<button class="btn" id="pick">${icon('image', 18)}Elegir foto</button>${s.avatar ? '<button class="btn ghost" id="ini">Usar mi inicial</button>' : ''}`, {
     onMount: ({ el, close }) => {
@@ -88,10 +91,11 @@ export async function perfil(app, profile) {
     },
   }));
   $('#goal', app).addEventListener('click', () => {
-    sessionStorage.setItem('baku-borrador', JSON.stringify({ name: profile.name, sex: profile.sex, age: profile.age, height: profile.height, weight: profile.weight, work: profile.work, days: profile.days, goal: profile.goal, target: profile.target, rate: profile.rate }));
+    sessionStorage.setItem('baku-borrador', JSON.stringify({ name: profile.name, sex: profile.sex, age: profile.age, height: profile.height, weight: profile.weight, work: profile.work, days: profile.days, goal: profile.goal, target: profile.target, rate: profile.rate, tdeeAdjust: profile.tdeeAdjust || 0 }));
     location.hash = '#/test/4';
   });
   $('#pause', app).addEventListener('click', () => pausar(s, rerender));
+  $('#unadapt', app)?.addEventListener('click', async () => { await updateProfile(profile, { tdeeAdjust: 0 }); rerender(); });
   $$('[data-e]', app).forEach((b) => b.addEventListener('click', () => editData(b.dataset.e, profile, s, rerender)));
 }
 
@@ -355,7 +359,17 @@ export async function meta(app, profile) {
     setTimeout(() => toast(`Mantenimiento: ${fmt(profile.plan.kcal)} kcal al día`), 250);
   });
   $('#new', app).addEventListener('click', () => {
-    sessionStorage.setItem('baku-borrador', JSON.stringify({ name: profile.name, sex: profile.sex, age: profile.age, height: profile.height, weight: last.kg, work: profile.work, days: profile.days, goal: 'perder', target: +(last.kg - 3).toFixed(1), rate: profile.rate || 0.5 }));
+    sessionStorage.setItem('baku-borrador', JSON.stringify({ name: profile.name, sex: profile.sex, age: profile.age, height: profile.height, weight: last.kg, work: profile.work, days: profile.days, goal: 'perder', target: +(last.kg - 3).toFixed(1), rate: profile.rate || 0.5, tdeeAdjust: profile.tdeeAdjust || 0 }));
     location.hash = '#/test/4';
   });
+}
+
+// Opinión o fallo: abre un correo ya preparado con lo que ayuda a entender el problema
+function feedback() {
+  const ua = navigator.userAgent;
+  const device = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? `Android ${(ua.match(/Android ([\d.]+)/) || [])[1] || ''}`.trim() : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Otro';
+  const browser = /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome/.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Otro';
+  const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone ? 'instalada' : 'en el navegador';
+  const body = `Cuéntame qué te gusta, qué echas en falta o qué ha fallado (y qué estabas haciendo):\n\n\n\n---\nNo borres esto, ayuda a encontrar el fallo:\nBaku ${APP_VERSION} · ${device} · ${browser} · ${installed} · pantalla ${screen.width}×${screen.height}`;
+  location.href = `mailto:baku.app.dieta@gmail.com?subject=${encodeURIComponent(`Opinión sobre Baku ${APP_VERSION}`)}&body=${encodeURIComponent(body)}`;
 }

@@ -1,7 +1,7 @@
 // Menús: semana, día, rellenar automático, propuesta y añadir platos.
 import { html, icon, tube, sheet, $, $$, toast, esc, circleBtn } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
-import { MEALS, MEAL_NAME, maps, dayGet, dayPut, dayTotals, mealTotals, entryNutr, entryName, entryAmount, weekStartOf, weekDays, addDays, parse, getSettings, recipeServing, foodNutr, emptyDay, searchSort } from '../store.js';
+import { MEALS, MEAL_NAME, maps, dayGet, dayPut, dayTotals, mealTotals, entryNutr, entryName, entryAmount, weekStartOf, weekDays, addDays, parse, getSettings, recipeServing, foodNutr, emptyDay, searchSort, recentEntries } from '../store.js';
 import { conflicts, recipeTags, tagsOf, allergenRow } from '../diet.js';
 import { COURSES } from '../comedor.js';
 import { db } from '../db.js';
@@ -25,6 +25,7 @@ export async function menus(app, profile, params) {
   const loaded = await Promise.all(days.map(dayGet));
   const byDate = Object.fromEntries(loaded.map((d) => [d.date, d]));
   const day = byDate[date];
+  const prev = byDate[addDays(date, -1)] || await dayGet(addDays(date, -1));
   const goal = profile.plan.kcal;
   const planned = dayTotals(day, m);
   const filled = MEALS.filter(([k]) => day.meals[k].length).length;
@@ -57,6 +58,7 @@ export async function menus(app, profile, params) {
       }).join('')}
       <div class="row" style="gap:14px;padding-top:4px">
         <a class="link row" style="gap:4px;font-size:13px" href="#/anadir?fecha=${date}&comida=${k}">${icon('plus', 14, 2.4)}Añadir</a>
+        ${!items.length && prev.meals[k].length ? `<button class="link row" data-ayer="${k}" style="gap:4px;font-size:13px">${icon('copy', 14, 2)}Como ayer</button>` : ''}
         ${items.length && !done && items.some((e) => e.kind === 'recipe') ? `<button class="link row" data-swap="${k}" style="gap:4px;font-size:13px">${icon('swap', 14, 2)}Cambiar</button>` : ''}
       </div></section>`;
   };
@@ -68,7 +70,7 @@ export async function menus(app, profile, params) {
     <div class="col" style="gap:4px;padding:0 4px">
       <span class="muted num" style="font-size:12px">Semana del ${range}</span>
       <div class="between"><div class="row" style="gap:10px"><span class="title-ic glass flat">${icon('menus', 18, 2)}</span><h1 class="h1">Menús</h1></div>
-      <div class="row" style="gap:6px"><a class="icon-btn glass flat" href="#/menus?fecha=${addDays(date, -7)}" aria-label="Semana anterior">${icon('chevl', 16, 2)}</a><a class="icon-btn glass flat" href="#/menus?fecha=${addDays(date, 7)}" aria-label="Semana siguiente">${icon('chev', 16, 2)}</a></div></div>
+      <div class="row" style="gap:6px"><a class="icon-btn glass flat" href="#/compra?fecha=${date}" aria-label="Lista de la compra">${icon('cart', 17, 2)}</a><a class="icon-btn glass flat" href="#/menus?fecha=${addDays(date, -7)}" aria-label="Semana anterior">${icon('chevl', 16, 2)}</a><a class="icon-btn glass flat" href="#/menus?fecha=${addDays(date, 7)}" aria-label="Semana siguiente">${icon('chev', 16, 2)}</a></div></div>
     </div>
     <div class="glass flat" id="strip" style="border-radius:22px;padding:4px;display:flex;gap:2px">${strip}</div>
 
@@ -83,6 +85,7 @@ export async function menus(app, profile, params) {
       <h2 style="font-size:18px;font-weight:600">${date === today ? 'Hoy está libre' : `El ${WD[parse(date).getDay()].toLowerCase()} está libre`}</h2>
       <p class="muted" style="font-size:13px;line-height:1.4;max-width:270px">Rellénalo con tus recetas favoritas o planifícalo tú, comida a comida.</p>
       <button class="btn small" id="fillDay">Rellenar con mis recetas</button>
+      ${MEALS.some(([k]) => prev.meals[k].length) ? `<button class="btn small ghost" id="ayerTodo">${icon('copy', 16)}Copiar lo de ayer</button>` : ''}
       <a class="btn small ghost" href="#/anadir?fecha=${date}&comida=desayuno">Planificar a mano</a>
     </section>`}
   </div>`;
@@ -109,6 +112,8 @@ export async function menus(app, profile, params) {
     location.hash = '#/menus/propuesta';
   };
   $('#fillDay', app)?.addEventListener('click', () => proposeDays([date]));
+  $$('[data-ayer]', app).forEach((b) => b.addEventListener('click', () => { const k = b.dataset.ayer; day.meals[k] = JSON.parse(JSON.stringify(prev.meals[k])); save(); toast(`${MEAL_NAME[k]} como ayer`); }));
+  $('#ayerTodo', app)?.addEventListener('click', () => { day.meals = JSON.parse(JSON.stringify(prev.meals)); day.done = {}; save(); toast('Copiado lo de ayer'); });
   $('#opts', app).addEventListener('click', () => {
     sheet('Opciones del día', html`<div class="col">
       ${[['fd', 'calendar', 'Rellenar este día', 'Con tus recetas y favoritos'], ['fw', 'menus', 'Rellenar la semana', 'Solo los huecos, desde hoy'], ['cp', 'swap', 'Copiar este día a…', 'Otro día de la semana'], ['rp', 'chevl', 'Repetir la semana anterior', 'Copia los 7 días'], ['cl', 'trash', 'Vaciar el día', 'Quita todos los platos']]
@@ -202,6 +207,8 @@ export async function anadir(app, profile, params) {
   let cat = 'Todas';
   const m = await maps();
   const ret = params.get('volver') || `#/menus?fecha=${date}`;
+  const valid = (e) => (e.kind === 'recipe' ? !!m.recipes[e.id] : m.foods[e.id] && !m.foods[e.id].hidden);
+  let recents = (await recentEntries(meal, 12)).filter(valid).slice(0, 6);
 
   // Aviso pequeño si algo no encaja con la dieta
   const warn = (tags) => (conflicts(tags, m.diet).length ? ` <span style="color:var(--oxido-claro)">· No encaja con tu dieta</span>` : '');
@@ -222,13 +229,17 @@ export async function anadir(app, profile, params) {
       $('#cats', app).hidden = true;
       return;
     }
-    $('#list', app).innerHTML = tab === 'recetas'
+    const rec = !q && recents.length ? html`<div class="col" style="padding:8px 0 2px"><span class="muted small">Recientes · toca para repetirlo igual</span>
+      ${recents.map((e, i) => `<button class="list-row" data-rc="${i}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%;${i ? '' : 'border-top:0'}"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(entryName(e, m))}</span><span class="muted small num">${entryAmount(e, m)}</span></span><span class="num" style="font-size:13px;font-weight:600">${fmt(entryNutr(e, m).kcal)} <span class="unit">kcal</span></span>${icon('plus', 16, 2.2)}</button>`).join('')}
+      </div><div style="height:1px;background:rgba(242,234,219,0.18);margin:6px 0 2px"></div>` : '';
+    $('#list', app).innerHTML = rec + (tab === 'recetas'
       ? (recipes.length ? recipes.map((r) => `<button class="list-row" data-r="${r.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(r.name)}</span><span class="muted small">${(r.meals || []).map((k) => MEAL_NAME[k]).join(' · ') || 'Sin comida asignada'}${warn(recipeTags(r, m.foods))}</span></span><span class="num" style="font-size:13px;font-weight:600">${fmt(recipeServing(r, m.foods).kcal)} <span class="unit">kcal</span></span>${icon('plus', 16, 2.2)}</button>`).join('')
         : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">No tienes recetas con ese nombre.</p>`)
         + `<a class="btn small ghost" href="#/receta/nueva" style="margin-top:8px">${icon('plus', 16, 2.2)}Nueva receta</a>`
       : (foods.length ? foods.slice(0, 80).map((f) => `<button class="list-row" data-f="${f.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${f.liked ? `<span style="color:var(--crema)">${icon('heart', 11, 2)}</span> ` : ''}${esc(f.name)}</span><span class="muted small num">${f.cat} · ${fmt(f.kcal)} kcal / 100 g${warn(tagsOf([f]))}</span></span>${icon('plus', 16, 2.2)}</button>`).join('')
         : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">No está en tu despensa. Búscalo en Open Food Facts desde la Despensa o escanéalo.</p>`)
-        + `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px"><a class="btn small ghost" href="#/escaner">${icon('scan', 16)}Escanear</a><a class="btn small ghost" href="#/despensa/alimentos">${icon('search', 16)}Buscar más</a></div>`;
+        + `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px"><a class="btn small ghost" href="#/escaner">${icon('scan', 16)}Escanear</a><a class="btn small ghost" href="#/despensa/alimentos">${icon('search', 16)}Buscar más</a></div>`);
+    $$('[data-rc]', app).forEach((b) => b.addEventListener('click', () => { const e = recents[+b.dataset.rc]; commit(e.kind === 'recipe' ? { kind: 'recipe', id: e.id, servings: e.servings || 1 } : { kind: 'food', id: e.id, g: e.g }); }));
     $$('[data-r]', app).forEach((b) => b.addEventListener('click', () => addRecipe(m.recipes[b.dataset.r])));
     $$('[data-f]', app).forEach((b) => b.addEventListener('click', () => addFood(m.foods[b.dataset.f])));
     $('#cats', app).hidden = tab !== 'alimentos';
@@ -271,7 +282,7 @@ export async function anadir(app, profile, params) {
   </div>`;
   $('#back', app).addEventListener('click', () => history.back());
   $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
-  $$('[data-meal]', app).forEach((b) => b.addEventListener('click', () => { meal = b.dataset.meal; $$('[data-meal]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); }));
+  $$('[data-meal]', app).forEach((b) => b.addEventListener('click', async () => { meal = b.dataset.meal; $$('[data-meal]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); recents = (await recentEntries(meal, 12)).filter(valid).slice(0, 6); render(); }));
   $$('[data-tab]', app).forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; sessionStorage.setItem('baku-anadir-tab', tab); $$('[data-tab]', app).forEach((x) => x.setAttribute('aria-checked', x === b)); render(); }));
   $$('[data-cat]', app).forEach((b) => b.addEventListener('click', () => { cat = b.dataset.cat; $$('[data-cat]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); }));
   render();

@@ -28,7 +28,8 @@ export function bmi(weight, heightCm) {
 export function computePlan(p) {
   const base = bmr(p);
   const factor = activityFactor(p.work, p.days);
-  const tdee = base * factor;
+  // tdeeAdjust: corrección aprendida de tus pesajes y lo que comes (ver estimateRealTDEE)
+  const tdee = base * factor + (p.tdeeAdjust || 0);
   const daily = (p.rate * KCAL_PER_KG) / 7;
   let kcal = tdee;
   if (p.goal === 'perder') kcal = tdee - daily;
@@ -51,6 +52,7 @@ export function computePlan(p) {
     level: LEVEL_NAMES[factor],
     tdee: Math.round(tdee),
     adjust: Math.round(p.goal === 'mantener' ? 0 : daily),
+    learned: Math.round(p.tdeeAdjust || 0),
     kcal,
     floored,
     protein,

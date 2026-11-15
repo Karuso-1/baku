@@ -14,6 +14,7 @@ import { cuenta } from './screens/cuenta.js';
 import { startSync } from './sync.js';
 import { showTips } from './tips.js';
 import { avisos } from './screens/avisos.js';
+import { compra } from './screens/compra.js';
 import { privacidad } from './screens/privacidad.js';
 import { startAvisos } from './avisos.js';
 const TIP_FOR = { '/hoy': 'hoy', '/menus': 'menus', '/despensa': 'despensa', '/despensa/alimentos': 'alimentos', '/progreso': 'progreso' };
@@ -39,6 +40,7 @@ const ROUTES = [
   [/^\/progreso\/comparar$/, null, comparar],
   [/^\/menus$/, 'menus', menus],
   [/^\/menus\/propuesta$/, null, propuesta],
+  [/^\/compra$/, null, compra],
   [/^\/anadir$/, null, anadir],
   [/^\/receta\/nueva$/, null, (a, p) => recetaForm(a, p, null)],
   [/^\/receta\/([\w-]+)\/editar$/, null, (a, p, q, id) => recetaForm(a, p, id)],

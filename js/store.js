@@ -37,6 +37,7 @@ export async function saveSettings(patch) { const s = { ...(await getSettings())
 // ---------- Alimentos ----------
 // Crea la biblioteca la primera vez y la amplía en cada versión nueva sin tocar lo del usuario
 export async function ensureSeed() {
+  await fixComedor();
   const s = await getSettings();
   if (s.seeded && s.catalog >= CATALOG_VERSION) return;
   const existing = await db.all('foods');
@@ -68,7 +69,7 @@ export async function ensureSeed() {
   for (const c of COMEDOR) {
     if (have.has(c.key)) continue;
     const items = c.items.map(([n, g]) => ({ foodId: byName[n]?.id, g })).filter((it) => it.foodId);
-    await db.put('recipes', { id: uid(), key: c.key, name: c.name, course: c.course, meals: ['comida'], servings: 1, photo: null, comedor: true, createdAt: 0, items });
+    await db.put('recipes', { id: `com-${c.key}`, key: c.key, name: c.name, course: c.course, meals: ['comida'], servings: 1, photo: null, comedor: true, createdAt: 0, items });
   }
   // Recetario con fotos: ids fijos ('lib-…') para no duplicar entre móviles; si borras una, no vuelve
   const s2 = await getSettings();
@@ -222,3 +223,83 @@ export async function streakAndAverage(profile, settings) {
 }
 
 export const r1 = round;
+
+
+// ---------- Comedor sin duplicados ----------
+// Los platos de comedor se creaban con un id distinto en cada móvil: con la misma cuenta en dos
+// móviles salían repetidos. Ahora el id es fijo ('com-<clave>'). Esto junta los repetidos en uno
+// y actualiza los días que los usaban. Es barato y se puede llamar en cada arranque.
+export async function fixComedor() {
+  const all = (await db.all('recipes')).filter((r) => r.comedor && r.key);
+  const groups = {};
+  for (const r of all) (groups[r.key] ||= []).push(r);
+  const map = {};
+  for (const [key, list] of Object.entries(groups)) {
+    const target = `com-${key}`;
+    if (list.length === 1 && list[0].id === target) continue;
+    const keep = list.find((r) => r.id === target) || list.find((r) => r.photo) || list[0];
+    if (keep.id !== target) await db.put('recipes', { ...keep, id: target });
+    for (const r of list) if (r.id !== target) { map[r.id] = target; await db.del('recipes', r.id); }
+  }
+  if (!Object.keys(map).length) return 0;
+  for (const d of await db.all('days')) {
+    let changed = false;
+    for (const k of Object.keys(d.meals || {})) for (const e of d.meals[k]) if (e.kind === 'recipe' && map[e.id]) { e.id = map[e.id]; changed = true; }
+    if (changed) await db.put('days', d);
+  }
+  return Object.keys(map).length;
+}
+
+// ---------- Recientes ----------
+// Lo último que has apuntado (21 días), primero lo de esta comida. Una vez cada cosa.
+export async function recentEntries(meal, limit = 6) {
+  const from = addDays(todayISO(), -21);
+  const days = (await db.all('days')).filter((d) => d.date >= from && d.date <= todayISO()).sort((a, b) => b.date.localeCompare(a.date));
+  const seen = new Set();
+  const out = [];
+  const take = (onlyMeal) => {
+    for (const d of days) for (const [k] of MEALS) {
+      if (onlyMeal ? k !== meal : k === meal) continue;
+      for (const e of [...(d.meals?.[k] || [])].reverse()) {
+        const id = `${e.kind}:${e.id}`;
+        if (seen.has(id) || out.length >= limit) continue;
+        seen.add(id); out.push({ ...e });
+      }
+    }
+  };
+  take(true); take(false);
+  return out;
+}
+
+// ---------- Gasto real ----------
+// Como lo haría un dietista: compara lo que comes de verdad con cómo cambia tu peso.
+// Si en 3 a 6 semanas pierdes menos (o más) de lo previsto, tu gasto real es otro.
+// gasto real = media comida + (kg perdidos × 7700) / días
+export const ADAPT = { minDays: 21, maxDays: 42, minLogged: 0.8, minDiff: 120, maxStep: 300 };
+export async function estimateRealTDEE(profile) {
+  const weights = await weightsAll();
+  const res = { ok: false, need: 'pesos', weeks: 0, logged: 0 };
+  if (weights.length < 2) return res;
+  const last = weights[weights.length - 1];
+  const from = addDays(last.date, -ADAPT.maxDays);
+  const first = weights.find((w) => w.date >= from && w.date >= profile.startDate);
+  const span = first ? Math.round((parse(last.date) - parse(first.date)) / 86400000) : 0;
+  res.weeks = Math.floor(span / 7);
+  if (!first || span < ADAPT.minDays) return res;
+  const days = Object.fromEntries((await db.all('days')).map((d) => [d.date, { ...emptyDay(d.date), ...d }]));
+  const m = await maps();
+  let n = 0, sum = 0;
+  for (let d = first.date; d < last.date; d = addDays(d, 1)) {
+    const day = days[d];
+    if (day && MEALS.some(([k]) => day.done[k])) { n++; sum += dayTotals(day, m, true).kcal; }
+  }
+  res.logged = n / span;
+  if (res.logged < ADAPT.minLogged) { res.need = 'comidas'; return res; }
+  const intake = sum / n;
+  const change = last.kg - first.kg; // negativo si bajas
+  const real = intake - (change * 7700) / span;
+  if (real < 1200 || real > 4500) { res.need = 'raro'; return res; }
+  const current = profile.plan.tdee;
+  const step = Math.max(-ADAPT.maxStep, Math.min(ADAPT.maxStep, real - current));
+  return { ok: true, intake: Math.round(intake), change, span, real: Math.round(real), current, step: Math.round(step / 10) * 10, logged: res.logged, weeks: res.weeks, from: first.date, to: last.date, worth: Math.abs(real - current) >= ADAPT.minDiff };
+}

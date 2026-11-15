@@ -1,7 +1,7 @@
 // Pantalla Hoy.
-import { html, icon, bowl, tube, $, $$, blobUrl, esc } from '../ui.js';
+import { html, icon, bowl, tube, $, $$, blobUrl, esc, toast } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
-import { MEALS, maps, dayGet, dayPut, dayTotals, mealTotals, entryName, weightsAll, getSettings, streakAndAverage, photosByWeek, planWeek, parse } from '../store.js';
+import { MEALS, maps, dayGet, dayPut, dayTotals, mealTotals, entryName, weightsAll, getSettings, streakAndAverage, photosByWeek, planWeek, parse, addDays } from '../store.js';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -31,7 +31,7 @@ export async function hoy(app, profile) {
   app.className = '';
   const date = todayISO();
   const now = new Date();
-  const [settings, m, day, weights, photos] = await Promise.all([getSettings(), maps(), dayGet(date), weightsAll(), photosByWeek()]);
+  const [settings, m, day, weights, photos, prev] = await Promise.all([getSettings(), maps(), dayGet(date), weightsAll(), photosByWeek(), dayGet(addDays(date, -1))]);
   const { streak, avg, perDay } = await streakAndAverage(profile, settings);
   const plan = profile.plan;
   const week = planWeek(profile, date);
@@ -55,10 +55,12 @@ export async function hoy(app, profile) {
     const t = mealTotals(day, k, m);
     const done = !!day.done[k];
     if (!items.length) {
-      return html`<a class="list-row" href="#/anadir?fecha=${date}&comida=${k}" style="text-decoration:none;color:#fff">
-        <span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:rgba(242,234,219,0.4)">${icon('dashed', 22, 1.6)}</span>
-        <span class="col grow"><span style="font-size:14px;font-weight:600">${label}</span><span class="muted small">Sin planificar</span></span>
-        <span class="link" style="font-size:12px">Añadir</span></a>`;
+      const ayer = prev.meals[k].length;
+      return html`<div class="list-row"><a href="#/anadir?fecha=${date}&comida=${k}" class="row grow" style="gap:10px;text-decoration:none;color:#fff;min-width:0">
+        <span style="width:28px;height:28px;flex:none;display:flex;align-items:center;justify-content:center;color:rgba(242,234,219,0.4)">${icon('dashed', 22, 1.6)}</span>
+        <span class="col grow" style="min-width:0"><span style="font-size:14px;font-weight:600">${label}</span><span class="muted small">Sin planificar</span></span>
+        ${ayer ? '' : '<span class="link" style="font-size:12px">Añadir</span>'}</a>
+        ${ayer ? `<button class="link" data-ayer="${k}" style="font-size:12px;white-space:nowrap" aria-label="${label} como ayer: ${esc(prev.meals[k].map((e) => entryName(e, m)).join(', '))}">Como ayer</button>` : ''}</div>`;
     }
     return html`<div class="list-row">
       <button class="meal-toggle" data-meal="${k}" aria-pressed="${done}" aria-label="${label}: ${done ? 'hecha' : 'pendiente'}" style="width:28px;height:28px;border:0;padding:0;background:transparent;display:flex;align-items:center;justify-content:center;color:${done ? 'var(--salvia)' : 'rgba(242,234,219,0.6)'}">
@@ -133,6 +135,7 @@ export async function hoy(app, profile) {
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%">
         <a class="btn small" href="#/anadir?fecha=${date}&comida=${mealNow()}">Añadir ${MEALS.find(([k]) => k === mealNow())[1].toLowerCase()}</a>
         <a class="btn small ghost" href="#/menus">Planificar menú</a></div>
+      ${MEALS.some(([k]) => prev.meals[k].length) ? `<button class="link row" id="ayerTodo" style="gap:6px;font-size:13px;margin-top:2px">${icon('copy', 14, 2)}Copiar el menú de ayer</button>` : ''}
     </section>`}
 
     <section class="glass card" style="padding:12px 16px">
@@ -150,6 +153,18 @@ export async function hoy(app, profile) {
     hoy(app, profile);
     if (navigator.vibrate) navigator.vibrate(8);
   }));
+  $$('[data-ayer]', app).forEach((b) => b.addEventListener('click', async () => {
+    const k = b.dataset.ayer;
+    day.meals[k] = JSON.parse(JSON.stringify(prev.meals[k]));
+    await dayPut(day);
+    hoy(app, profile);
+    toast(`${MEALS.find(([x]) => x === k)[1]} como ayer. Márcala cuando la comas.`);
+  }));
+  $('#ayerTodo', app)?.addEventListener('click', async () => {
+    day.meals = JSON.parse(JSON.stringify(prev.meals)); day.done = {};
+    await dayPut(day); hoy(app, profile);
+    toast('Menú de ayer copiado. Marca cada comida cuando la hagas.');
+  });
   $('#peso', app).addEventListener('click', async () => {
     const { anotarPeso } = await import('./progreso.js');
     anotarPeso(() => window.__route());

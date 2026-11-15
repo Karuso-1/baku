@@ -256,7 +256,7 @@ export function plan(app) {
     <section class="glass card" style="gap:0;padding:12px 16px 6px">
       <h2 style="font-size:15px;font-weight:600;padding-bottom:8px">Cómo lo he calculado</h2>
       ${line('Metabolismo basal', 'Lo que gastas en reposo', fmt(p.bmr))}
-      ${line('Con tu actividad', `${WORK_SHORT[d.work]} + ${daysTxt}, × ${fdec(p.factor)}`, fmt(p.tdee))}
+      ${line('Con tu actividad', `${WORK_SHORT[d.work]} + ${daysTxt}, × ${fdec(p.factor)}${d.tdeeAdjust ? ', ajustado con tus datos' : ''}`, fmt(p.tdee))}
       ${line(adjLabel, adjSub, d.goal === 'mantener' ? '0' : (d.goal === 'perder' ? '−' : '+') + fmt(p.adjust))}
       ${line('Tu objetivo diario', '', fmt(p.kcal) + ' <span class="unit">kcal</span>', true)}
     </section>
@@ -270,7 +270,7 @@ export function plan(app) {
     const profile = {
       name: d.name.trim(), sex: d.sex, age: d.age, height: d.height,
       startWeight: prev ? prev.startWeight : d.weight, weight: d.weight, target: d.target, goal: d.goal, rate: d.rate,
-      work: d.work, days: d.days, diet: d.diet || prev?.diet || { ...DEFAULT_DIET }, startDate: prev ? prev.startDate : today, plan: { ...p, weeksTotal: p.weeks }, createdAt: prev ? prev.createdAt : Date.now(),
+      work: d.work, days: d.days, tdeeAdjust: d.tdeeAdjust || 0, diet: d.diet || prev?.diet || { ...DEFAULT_DIET }, startDate: prev ? prev.startDate : today, plan: { ...p, weeksTotal: p.weeks }, createdAt: prev ? prev.createdAt : Date.now(),
     };
     await saveProfile(profile);
     await db.put('weights', { date: today, kg: d.weight });

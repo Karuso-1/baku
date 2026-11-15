@@ -1,8 +1,8 @@
 // Progreso: gráfica de peso, anotar peso, fotos semanales y comparar.
 import { html, icon, ruler, sheet, $, $$, toast, pickImage, resizeImage, blobUrl, circleLink } from '../ui.js';
-import { fmt, fmtDate, todayISO, bmi } from '../plan.js';
-import { getProfile, db } from '../db.js';
-import { weightsAll, logWeight, photosByWeek, planWeek, addDays, parse, VIEWS, iso } from '../store.js';
+import { fmt, fmtDate, todayISO, bmi, computePlan } from '../plan.js';
+import { getProfile, saveProfile, db } from '../db.js';
+import { weightsAll, logWeight, photosByWeek, planWeek, addDays, parse, VIEWS, iso, estimateRealTDEE, getSettings, saveSettings, ADAPT } from '../store.js';
 import { totalWeeks } from './hoy.js';
 
 const weekDate = (p, n) => addDays(p.startDate, (n - 1) * 7);
@@ -33,6 +33,10 @@ function chart(profile, weights, period) {
   const goal = profile.goal !== 'mantener'
     ? `<line x1="${L}" x2="${W - R}" y1="${sy(profile.target)}" y2="${sy(profile.target)}" stroke="var(--salvia)" stroke-width="1.2" stroke-dasharray="4 4"/>` : '';
   const line = pts.map((w, i) => `${i ? 'L' : 'M'}${sx(xWeek(profile, w.date)).toFixed(1)} ${sy(w.kg).toFixed(1)}`).join(' ');
+  // Tendencia: media que suaviza los altibajos del agua (solo con 4 pesos o más)
+  let ema = null;
+  const trendPts = weights.map((w) => { ema = ema === null ? w.kg : ema + 0.45 * (w.kg - ema); return { date: w.date, kg: ema }; }).filter((w) => xWeek(profile, w.date) >= x0 - 0.01);
+  const trend = weights.length >= 4 ? `<path d="${trendPts.map((w, i) => `${i ? 'L' : 'M'}${sx(xWeek(profile, w.date)).toFixed(1)} ${sy(w.kg).toFixed(1)}`).join(' ')}" stroke="#F2EADB" stroke-opacity="0.22" stroke-width="7" fill="none" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   const dots = pts.map((w, i) => {
     const isLast = i === pts.length - 1;
     const cx = sx(xWeek(profile, w.date)), cy = sy(w.kg);
@@ -44,7 +48,7 @@ function chart(profile, weights, period) {
     ? `<path d="M${sx(xWeek(profile, last.date))} ${sy(last.kg)} L${sx(reachX)} ${sy(profile.target)}" stroke="#F2EADB" stroke-opacity="0.55" stroke-width="1.6" stroke-dasharray="3 4" fill="none"/>` : '';
   const ticks = [Math.ceil(x0), Math.round((x0 + x1) / 2), Math.floor(x1)].filter((v, i, a) => a.indexOf(v) === i)
     .map((x) => `<text x="${sx(x)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#E3DCCD">S${x}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Gráfica de peso">${grid}${goal}${proj}<path d="${line}" stroke="#F2EADB" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>${dots}${ticks}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Gráfica de peso">${grid}${goal}${trend}${proj}<path d="${line}" stroke="#F2EADB" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>${dots}${ticks}</svg>`;
 }
 
 export async function progreso(app, profile, params) {
@@ -68,6 +72,9 @@ export async function progreso(app, profile, params) {
     ahead = realRate !== null && eta < planEnd;
   }
   const weeksList = Array.from({ length: week }, (_, i) => week - i);
+  const est = await estimateRealTDEE(profile);
+  const settings = await getSettings();
+  const adapt = adaptCard(profile, est, settings);
 
   app.innerHTML = html`<div class="screen">
     <div class="col" style="gap:4px;padding:0 4px">
@@ -86,6 +93,7 @@ export async function progreso(app, profile, params) {
       ${chart(profile, weights, period)}
       <div class="row muted small" style="gap:14px;flex-wrap:wrap">
         <span class="row" style="gap:5px"><span style="width:14px;height:2px;background:#F2EADB;border-radius:2px"></span>Tu peso (kg)</span>
+        ${weights.length >= 4 ? '<span class="row" style="gap:5px"><span style="width:14px;height:6px;background:rgba(242,234,219,0.25);border-radius:4px"></span>Tendencia</span>' : ''}
         ${profile.goal === 'mantener' ? '' : `<span class="row" style="gap:5px"><span style="width:14px;border-top:2px dashed rgba(242,234,219,0.6)"></span>Proyección</span><span class="row num" style="gap:5px"><span style="width:14px;border-top:2px dashed var(--salvia)"></span>Meta ${fmt(profile.target, profile.target % 1 ? 1 : 0)} kg</span>`}
       </div>
     </section>
@@ -95,6 +103,8 @@ export async function progreso(app, profile, params) {
       <div class="glass stat"><span class="muted small">Ritmo real</span><span class="num" style="font-size:18px;font-weight:600">${realRate === null ? '—' : fmt(Math.abs(realRate), 2).replace(/0$/, '')} ${realRate === null ? '' : '<span class="unit">kg/sem</span>'}</span></div>
       <div class="glass stat"><span class="muted small">${ahead ? 'Adelantado' : 'Llegada'}</span><span class="num" style="font-size:18px;font-weight:600">${eta ? fmtDate(eta) : '—'}</span></div>
     </div>
+
+    ${adapt.html}
 
     <section class="glass card" id="fotos">
       <div class="between"><h2 class="h2">Fotos semanales</h2>${Object.keys(photos).length >= 2 ? `<a class="link" href="#/progreso/comparar" style="font-size:13px">Comparar</a>` : '<span class="muted small">Compara a partir de 2 semanas</span>'}</div>
@@ -114,6 +124,7 @@ export async function progreso(app, profile, params) {
 
   $$('[data-period]', app).forEach((b) => b.addEventListener('click', () => { sessionStorage.setItem('baku-periodo', b.dataset.period); progreso(app, profile, params); }));
   $('#anotar', app).addEventListener('click', () => anotarPeso(() => window.__route()));
+  adapt.bind(app, () => window.__route());
   $$('[data-week]', app).forEach((b) => b.addEventListener('click', () => fotosSemana(+b.dataset.week, () => window.__route())));
   if (params.get('fotos')) $('#fotos', app).scrollIntoView({ block: 'center' });
 }
@@ -317,3 +328,51 @@ async function saveComposite(a, b, ca, cb, diff) {
   toast('Imagen descargada');
 }
 export { iso };
+
+// ---------- Meta que se ajusta sola ----------
+function adaptCard(profile, est, settings) {
+  const none = { html: '', bind: () => {} };
+  const head = (t) => `<div class="row" style="gap:10px"><span class="title-ic glass flat" style="width:32px;height:32px">${icon('sync', 15, 2)}</span><h2 class="h2">${t}</h2></div>`;
+  const card = (inner) => `<section class="glass card" style="gap:8px">${inner}</section>`;
+  const p = (t) => `<p class="muted" style="font-size:13px;line-height:1.45">${t}</p>`;
+  if (!est.ok) {
+    const weeks = ADAPT.minDays / 7;
+    const txt = est.need === 'comidas'
+      ? `Para ajustar tu meta con tus datos reales necesito que marques como hechas las comidas de 8 de cada 10 días. Estas semanas vas por el ${Math.round(est.logged * 100)} %.`
+      : est.need === 'raro'
+        ? 'Los datos de estas semanas no cuadran (quizá falta alguna comida por apuntar o hay un pesaje raro). Sigo con el cálculo de siempre.'
+        : `Cuando lleves ${weeks} semanas pesándote y apuntando lo que comes, compararé las dos cosas y ajustaré tu meta a lo que gastas de verdad. ${est.weeks ? `Llevas ${est.weeks} de ${weeks}.` : ''}`;
+    return { html: card(head('Tu meta se ajusta sola') + p(txt)), bind: () => {} };
+  }
+  const weeks = Math.round(est.span / 7);
+  const changeTxt = Math.abs(est.change) < 0.05 ? 'tu peso no se ha movido' : `has ${est.change < 0 ? 'bajado' : 'subido'} ${fmt(Math.abs(est.change), 1)} kg`;
+  const base = `En las últimas ${weeks} semanas has comido de media ${fmt(est.intake)} kcal al día y ${changeTxt}. Eso indica que gastas unas <b style="color:#fff">${fmt(est.real)} kcal</b> al día.`;
+  if (!est.worth) return { html: card(head('Vas según lo previsto') + p(`${base} Es casi lo que calculé al principio (${fmt(est.current)}), así que tu meta sigue igual.`)), bind: () => {} };
+  if (settings.adaptSeen === est.to) return none;
+  const next = { ...profile, tdeeAdjust: (profile.tdeeAdjust || 0) + est.step };
+  const newKcal = computePlan(next).kcal;
+  if (newKcal === profile.plan.kcal) return none;
+  const capped = Math.abs(est.real - est.current) > ADAPT.maxStep;
+  return {
+    html: card(head('Tu gasto real es otro') + p(`${base} Al principio calculé ${fmt(est.current)}.`)
+      + `<div class="between glass flat" style="border-radius:16px;padding:10px 14px"><span class="muted small">Tu meta diaria</span><span class="num" style="font-size:16px;font-weight:600">${fmt(profile.plan.kcal)} → ${fmt(newKcal)} <span class="unit">kcal</span></span></div>`
+      + p(newKcal > profile.plan.kcal
+        ? (profile.goal === 'perder' ? 'Subir la meta no te frena: el déficit para bajar se sigue calculando, pero sobre lo que gastas de verdad.' : 'Gastas más de lo calculado, así que te toca algo más de comida.')
+        : (profile.goal === 'perder' ? 'Para bajar al ritmo que elegiste, te toca comer algo menos de lo calculado al principio.' : 'Gastas menos de lo calculado, así que te toca algo menos de comida.'))
+      + (capped ? p(`Lo cambio como mucho ${ADAPT.maxStep} kcal de golpe. Si hace falta más, te lo volveré a proponer con los próximos pesajes.`) : '')
+      + p('Solo cuenta los días con comidas marcadas como hechas. Si se te olvidó apuntar algo, mejor no lo apliques.')
+      + `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><button class="btn small ghost" id="adNo">Ahora no</button><button class="btn small" id="adOk">Ajustar meta</button></div>`),
+    bind: (app, done) => {
+      $('#adNo', app)?.addEventListener('click', async () => { await saveSettings({ adaptSeen: est.to }); done(); });
+      $('#adOk', app)?.addEventListener('click', async () => {
+        const weeksTotal = profile.plan.weeksTotal;
+        profile.tdeeAdjust = next.tdeeAdjust;
+        profile.plan = { ...computePlan(profile), weeksTotal };
+        await saveProfile(profile);
+        await saveSettings({ adaptSeen: est.to });
+        toast(`Meta ajustada: ${fmt(profile.plan.kcal)} kcal al día`);
+        done();
+      });
+    },
+  };
+}
