@@ -283,3 +283,9 @@ html, body { overflow-x: hidden; }
 .aviso-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.08); }
 .aviso-row:first-child { border-top: 0; }
 .aviso-row.off .aviso-opts { display: none; }
+
+/* ---------- Modo discreto ---------- */
+.priv, .priv * { transition: color .25s, text-shadow .25s; }
+body.discreto .priv, body.discreto .priv * { color: transparent !important; text-shadow: 0 0 0.42em rgba(242,234,219,0.85); user-select: none; -webkit-user-select: none; }
+body.discreto .priv-svg { visibility: hidden; }
+.discreto-btn[aria-pressed="true"] { background: var(--crema); color: var(--fondo); }

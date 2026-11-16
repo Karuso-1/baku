@@ -1,5 +1,5 @@
 // Perfil y ajustes: datos, plan, fondo, copia de seguridad, pausa y meta alcanzada.
-import { html, icon, sheet, ruler, $, $$, toast, esc, pickImage, resizeImage, blobUrl, circleLink, APP_VERSION } from '../ui.js';
+import { html, icon, sheet, ruler, $, $$, toast, esc, pickImage, resizeImage, blobUrl, circleLink, APP_VERSION, isDiscreet, setDiscreet } from '../ui.js';
 import { fmt, fmtDate, todayISO, computePlan, activityFactor, LEVEL_NAMES, bmi } from '../plan.js';
 import { db, saveProfile, getProfile } from '../db.js';
 import { getSettings, saveSettings, weightsAll, photosByWeek, planWeek, addDays, parse, recipesAll } from '../store.js';
@@ -48,8 +48,8 @@ export async function perfil(app, profile) {
     <section class="glass card">
       <div class="between"><h2 class="h2">Tu plan</h2><span class="muted small">Se recalcula al anotar peso</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
-        <span class="col"><span class="muted small">Objetivo</span><span class="num" style="font-size:18px;font-weight:600">${goalTxt}</span></span>
-        <span class="col"><span class="muted small">Ritmo</span><span class="num" style="font-size:18px;font-weight:600">${profile.goal === 'mantener' ? '—' : fmt(profile.rate, 2).replace(/0$/, '') + ' <span class="unit">kg/sem</span>'}</span></span>
+        <span class="col"><span class="muted small">Objetivo</span><span class="num${profile.goal === 'mantener' ? '' : ' priv'}" style="font-size:18px;font-weight:600">${goalTxt}</span></span>
+        <span class="col"><span class="muted small">Ritmo</span><span class="num priv" style="font-size:18px;font-weight:600">${profile.goal === 'mantener' ? '—' : fmt(profile.rate, 2).replace(/0$/, '') + ' <span class="unit">kg/sem</span>'}</span></span>
         <span class="col"><span class="muted small">Al día</span><span class="num" style="font-size:18px;font-weight:600">${fmt(p.kcal)} <span class="unit">kcal</span></span></span></div>
       <div class="num row" style="gap:6px;font-size:12px"><span class="pill">P ${p.protein} g</span><span class="pill">H ${p.carbs} g</span><span class="pill">G ${p.fat} g</span></div>
       ${profile.tdeeAdjust ? `<div class="between"><span class="muted small num">Ajustada con tus datos: ${profile.tdeeAdjust > 0 ? '+' : '−'}${fmt(Math.abs(profile.tdeeAdjust))} kcal de gasto</span><button class="link" id="unadapt" style="font-size:12px">Quitar ajuste</button></div>` : ''}
@@ -64,6 +64,7 @@ export async function perfil(app, profile) {
     <div class="col" style="gap:6px"><h2 class="muted" style="font-size:13px;font-weight:600;padding-left:4px">App</h2>
     <section class="glass card" style="gap:0;padding:4px 14px">
       ${row('image', 'Fondo', s.bgPhoto ? 'Mi foto' : PALETTES[s.palette].name, 'data-go="#/perfil/fondo"')}
+      ${row('eyeoff', 'Modo discreto', isDiscreet() ? 'Activado' : 'Desactivado', 'data-disc="1"')}
       ${row('calendar', 'La semana empieza el', s.weekStart === 1 ? 'Lunes' : 'Domingo', 'data-e="week"')}
       ${row('cloud', 'Cuenta y copia en la nube', hasSession() ? 'Activa' : 'Sin activar', 'data-go="#/cuenta"')}
       ${row('bell', 'Avisos', a.pausa ? 'En pausa' : avOn ? 'Activados' : 'Desactivados', 'data-go="#/avisos"')}
@@ -78,6 +79,12 @@ export async function perfil(app, profile) {
   const rerender = async () => perfil(app, await getProfile());
   $$('[data-go]', app).forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.go; }));
   $('[data-fb]', app).addEventListener('click', () => feedback());
+  $('[data-disc]', app).addEventListener('click', () => {
+    const on = !isDiscreet();
+    setDiscreet(on);
+    $('[data-disc] .num', app).textContent = on ? 'Activado' : 'Desactivado';
+    toast(on ? 'Modo discreto: peso e IMC ocultos' : 'Peso e IMC visibles');
+  });
   $('[data-tips]', app).addEventListener('click', async () => { await resetTips(); location.hash = '#/hoy'; });
   $('#foto', app).addEventListener('click', () => sheet('Foto de perfil', `<button class="btn" id="pick">${icon('image', 18)}Elegir foto</button>${s.avatar ? '<button class="btn ghost" id="ini">Usar mi inicial</button>' : ''}`, {
     onMount: ({ el, close }) => {
@@ -342,10 +349,10 @@ export async function meta(app, profile) {
     <div class="col" style="align-items:center;text-align:center;gap:8px">
       <span style="width:72px;height:72px;border-radius:999px;background:var(--crema);color:var(--fondo);display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(242,234,219,0.35)">${icon('check', 34, 2.4)}</span>
       <h1 style="font-size:30px;font-weight:600;letter-spacing:-0.02em;margin-top:4px">Lo has conseguido</h1>
-      <span class="muted num" style="font-size:14px">${fmt(last.kg, 1)} kg · ${fmt(diff, diff % 1 ? 1 : 0)} kg ${profile.goal === 'ganar' ? 'más' : 'menos'} en ${nWeeks} semanas</span></div>
+      <span class="muted num priv" style="font-size:14px">${fmt(last.kg, 1)} kg · ${fmt(diff, diff % 1 ? 1 : 0)} kg ${profile.goal === 'ganar' ? 'más' : 'menos'} en ${nWeeks} semanas</span></div>
     ${first ? `<div class="row" style="gap:10px">${pic(first, `Semana ${weeks[0]}`)}${pic(lastW, lastW ? `Semana ${weeks[weeks.length - 1]}` : 'Hazte la foto de hoy')}</div>` : ''}
     <div class="num" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center">
-      ${[[days, 'días anotando'], [w.length, 'pesos'], [fmt(bmi(last.kg, profile.height), 1), 'IMC ahora']].map(([n, l]) => `<span class="glass stat" style="align-items:center"><span style="font-size:16px;font-weight:600">${n}</span><span class="muted small">${l}</span></span>`).join('')}</div>
+      ${[[days, 'días anotando'], [w.length, 'pesos'], [fmt(bmi(last.kg, profile.height), 1), 'IMC ahora']].map(([n, l]) => `<span class="glass stat" style="align-items:center"><span class="${l === 'IMC ahora' ? 'priv' : ''}" style="font-size:16px;font-weight:600">${n}</span><span class="muted small">${l}</span></span>`).join('')}</div>
     <div class="spacer"></div>
     <p class="muted" style="font-size:12px;text-align:center;line-height:1.4;padding:0 12px">¿Y ahora? Lo difícil es mantenerlo. En mantenimiento comes lo justo para que el peso no rebote.</p>
     <button class="btn" id="maint" style="flex-direction:column;gap:0;height:58px"><span>Pasar a mantenimiento</span><span class="num" style="font-size:11px;font-weight:500;opacity:.75">${fmt(maint.kcal)} kcal al día</span></button>

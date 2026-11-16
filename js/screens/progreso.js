@@ -1,5 +1,5 @@
 // Progreso: gráfica de peso, anotar peso, fotos semanales y comparar.
-import { html, icon, ruler, sheet, $, $$, toast, pickImage, resizeImage, blobUrl, circleLink } from '../ui.js';
+import { html, icon, ruler, sheet, $, $$, toast, pickImage, resizeImage, blobUrl, circleLink, discreetBtn, isDiscreet } from '../ui.js';
 import { fmt, fmtDate, todayISO, bmi, computePlan } from '../plan.js';
 import { getProfile, saveProfile, db } from '../db.js';
 import { weightsAll, logWeight, photosByWeek, planWeek, addDays, parse, VIEWS, iso, estimateRealTDEE, getSettings, saveSettings, ADAPT } from '../store.js';
@@ -28,7 +28,7 @@ function chart(profile, weights, period) {
   const step = Math.max(1, Math.round((y1 - y0) / 4));
   let grid = '';
   for (let y = y0; y <= y1; y += step) {
-    grid += `<line x1="${L}" x2="${W - R}" y1="${sy(y)}" y2="${sy(y)}" stroke="rgba(242,234,219,0.1)"/><text x="${L - 6}" y="${sy(y) + 3.5}" text-anchor="end" font-size="10" fill="#E3DCCD">${y}</text>`;
+    grid += `<line x1="${L}" x2="${W - R}" y1="${sy(y)}" y2="${sy(y)}" stroke="rgba(242,234,219,0.1)"/><text x="${L - 6}" y="${sy(y) + 3.5}" text-anchor="end" font-size="10" fill="#E3DCCD" class="priv-svg">${y}</text>`;
   }
   const goal = profile.goal !== 'mantener'
     ? `<line x1="${L}" x2="${W - R}" y1="${sy(profile.target)}" y2="${sy(profile.target)}" stroke="var(--salvia)" stroke-width="1.2" stroke-dasharray="4 4"/>` : '';
@@ -85,22 +85,22 @@ export async function progreso(app, profile, params) {
 
     <section class="glass card">
       <div class="between" style="align-items:flex-start">
-        <span class="col"><span class="muted small">Peso actual</span><span class="num" style="font-size:34px;font-weight:300;letter-spacing:-0.03em;line-height:1.1">${fmt(last.kg, 1)} <span class="unit" style="font-size:13px">kg</span></span></span>
+        <span class="col"><span class="row" style="gap:8px"><span class="muted small">Peso actual</span>${discreetBtn(14, 'style="width:28px;height:28px"')}</span><span class="num priv" style="font-size:34px;font-weight:300;letter-spacing:-0.03em;line-height:1.1">${fmt(last.kg, 1)} <span class="unit" style="font-size:13px">kg</span></span></span>
         <button class="btn small" id="anotar" style="width:auto;padding:0 16px;height:40px;font-size:13px">Anotar peso</button></div>
       <div class="row num" style="gap:6px;flex-wrap:wrap">
-        ${Math.abs(lost) >= 0.05 ? `<span class="pill" style="background:rgba(156,199,175,0.18);color:var(--salvia)">${lost > 0 ? '−' : '+'}${fmt(Math.abs(lost), 1)} kg desde el inicio</span>` : '<span class="pill">Punto de partida</span>'}
-        ${profile.goal === 'mantener' ? '' : `<span class="pill">${left < 0.05 ? 'Meta alcanzada' : `Faltan ${fmt(left, 1)} kg`}</span>`}</div>
+        ${Math.abs(lost) >= 0.05 ? `<span class="pill priv" style="background:rgba(156,199,175,0.18);color:var(--salvia)">${lost > 0 ? '−' : '+'}${fmt(Math.abs(lost), 1)} kg desde el inicio</span>` : '<span class="pill">Punto de partida</span>'}
+        ${profile.goal === 'mantener' ? '' : `<span class="pill${left < 0.05 ? '' : ' priv'}">${left < 0.05 ? 'Meta alcanzada' : `Faltan ${fmt(left, 1)} kg`}</span>`}</div>
       ${chart(profile, weights, period)}
       <div class="row muted small" style="gap:14px;flex-wrap:wrap">
         <span class="row" style="gap:5px"><span style="width:14px;height:2px;background:#F2EADB;border-radius:2px"></span>Tu peso (kg)</span>
         ${weights.length >= 4 ? '<span class="row" style="gap:5px"><span style="width:14px;height:6px;background:rgba(242,234,219,0.25);border-radius:4px"></span>Tendencia</span>' : ''}
-        ${profile.goal === 'mantener' ? '' : `<span class="row" style="gap:5px"><span style="width:14px;border-top:2px dashed rgba(242,234,219,0.6)"></span>Proyección</span><span class="row num" style="gap:5px"><span style="width:14px;border-top:2px dashed var(--salvia)"></span>Meta ${fmt(profile.target, profile.target % 1 ? 1 : 0)} kg</span>`}
+        ${profile.goal === 'mantener' ? '' : `<span class="row" style="gap:5px"><span style="width:14px;border-top:2px dashed rgba(242,234,219,0.6)"></span>Proyección</span><span class="row num" style="gap:5px"><span style="width:14px;border-top:2px dashed var(--salvia)"></span>Meta <span class="priv">${fmt(profile.target, profile.target % 1 ? 1 : 0)} kg</span></span>`}
       </div>
     </section>
 
     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
-      <div class="glass stat"><span class="muted small">IMC</span><span class="num" style="font-size:18px;font-weight:600">${fmt(bmi(last.kg, profile.height), 1)}</span></div>
-      <div class="glass stat"><span class="muted small">Ritmo real</span><span class="num" style="font-size:18px;font-weight:600">${realRate === null ? '—' : fmt(Math.abs(realRate), 2).replace(/0$/, '')} ${realRate === null ? '' : '<span class="unit">kg/sem</span>'}</span></div>
+      <div class="glass stat"><span class="muted small">IMC</span><span class="num priv" style="font-size:18px;font-weight:600">${fmt(bmi(last.kg, profile.height), 1)}</span></div>
+      <div class="glass stat"><span class="muted small">Ritmo real</span><span class="num priv" style="font-size:18px;font-weight:600">${realRate === null ? '—' : fmt(Math.abs(realRate), 2).replace(/0$/, '')} ${realRate === null ? '' : '<span class="unit">kg/sem</span>'}</span></div>
       <div class="glass stat"><span class="muted small">${ahead ? 'Adelantado' : 'Llegada'}</span><span class="num" style="font-size:18px;font-weight:600">${eta ? fmtDate(eta) : '—'}</span></div>
     </div>
 
@@ -226,7 +226,7 @@ export async function comparar(app, profile) {
   const pa = pick(st.a), pb = pick(st.b);
   const diff = kgAt(st.b) - kgAt(st.a);
   const cap = (n) => `Semana ${n} · ${fmtDate(weekDate(profile, n), { weekday: 'short', day: 'numeric', month: 'short' })}`;
-  const tag = (n) => `<span class="num" style="position:absolute;left:8px;top:8px;height:22px;padding:0 8px;border-radius:999px;background:rgba(20,40,32,0.55);font-size:11px;display:inline-flex;align-items:center">S${n} · ${fmt(kgAt(n), 1)} kg</span>`;
+  const tag = (n) => `<span class="num" style="position:absolute;left:8px;top:8px;height:22px;padding:0 8px;border-radius:999px;background:rgba(20,40,32,0.55);font-size:11px;display:inline-flex;align-items:center">S${n}<span class="priv">&nbsp;· ${fmt(kgAt(n), 1)} kg</span></span>`;
 
   const side = html`<div style="display:flex;gap:10px">
     ${[[st.a, pa], [st.b, pb]].map(([n, p]) => `<figure style="margin:0;flex:1;display:flex;flex-direction:column;gap:6px"><button class="photo zoom" data-src="${blobUrl(p.blob)}" style="aspect-ratio:3/4;border:0;padding:0"><img src="${blobUrl(p.blob)}" alt="${cap(n)}">${tag(n)}</button><figcaption class="muted small num" style="text-align:center">${cap(n)}</figcaption></figure>`).join('')}</div>`;
@@ -247,7 +247,7 @@ export async function comparar(app, profile) {
       <button class="glass flat grow" data-sel="b" style="height:48px;border-radius:16px;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 12px;text-align:left"><span class="muted small">Después</span><span class="num" style="font-weight:600">Semana ${st.b}</span></button></div>
     ${st.mode === 'lado' ? side : slide}
     <div class="seg glass flat" role="radiogroup" aria-label="Vista">${VIEWS.map(([k, l]) => `<button role="radio" data-view="${k}" aria-checked="${st.view === k}">${l}</button>`).join('')}</div>
-    <div class="row" style="justify-content:center"><span class="pill num" style="height:32px;font-size:14px;font-weight:600;background:rgba(156,199,175,0.18);color:var(--salvia)">${Math.abs(diff) < 0.05 ? 'Mismo peso' : `${diff < 0 ? '−' : '+'}${fmt(Math.abs(diff), 1)} kg entre estas semanas`}</span></div>
+    <div class="row" style="justify-content:center"><span class="pill num priv" style="height:32px;font-size:14px;font-weight:600;background:rgba(156,199,175,0.18);color:var(--salvia)">${Math.abs(diff) < 0.05 ? 'Mismo peso' : `${diff < 0 ? '−' : '+'}${fmt(Math.abs(diff), 1)} kg entre estas semanas`}</span></div>
     <div class="spacer"></div>
     <button class="btn" id="guardar">${icon('download', 18, 2)}Guardar imagen en la galería</button>
   </div>`;
@@ -258,7 +258,7 @@ export async function comparar(app, profile) {
   $('#swapw', app).addEventListener('click', () => { [st.a, st.b] = [st.b, st.a]; rerender(); });
   $$('[data-sel]', app).forEach((b) => b.addEventListener('click', () => {
     const k = b.dataset.sel;
-    sheet(k === 'a' ? 'Antes' : 'Después', `<div class="col">${weeks.map((n) => `<button data-w="${n}" class="list-row" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;font-size:15px;justify-content:space-between"><span>Semana ${n}</span><span class="muted small num">${fmt(kgAt(n), 1)} kg</span></button>`).join('')}</div>`, {
+    sheet(k === 'a' ? 'Antes' : 'Después', `<div class="col">${weeks.map((n) => `<button data-w="${n}" class="list-row" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;font-size:15px;justify-content:space-between"><span>Semana ${n}</span><span class="muted small num priv">${fmt(kgAt(n), 1)} kg</span></button>`).join('')}</div>`, {
       onMount: ({ el, close }) => $$('[data-w]', el).forEach((x) => x.addEventListener('click', () => { st[k] = +x.dataset.w; close(); setTimeout(rerender, 220); })),
     });
   }));
@@ -317,7 +317,8 @@ async function saveComposite(a, b, ca, cb, diff) {
   x.fillText(ca, pad + w / 2, h + pad + 46);
   x.fillText(cb, pad * 2 + w * 1.5, h + pad + 46);
   x.fillStyle = '#F2EADB'; x.font = '600 34px "Uncut Sans", sans-serif';
-  x.fillText(Math.abs(diff) < 0.05 ? 'Mismo peso' : `${diff < 0 ? '−' : '+'}${fmt(Math.abs(diff), 1)} kg · Baku`, c.width / 2, h + pad + 100);
+  // En modo discreto la imagen sale sin kg
+  x.fillText(isDiscreet() ? 'Baku' : Math.abs(diff) < 0.05 ? 'Mismo peso' : `${diff < 0 ? '−' : '+'}${fmt(Math.abs(diff), 1)} kg · Baku`, c.width / 2, h + pad + 100);
   const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
   const file = new File([blob], `baku-${todayISO()}.jpg`, { type: 'image/jpeg' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {

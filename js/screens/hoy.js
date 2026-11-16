@@ -1,5 +1,5 @@
 // Pantalla Hoy.
-import { html, icon, bowl, tube, $, $$, blobUrl, esc, toast } from '../ui.js';
+import { html, icon, bowl, tube, $, $$, blobUrl, esc, toast, discreetBtn } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
 import { MEALS, maps, dayGet, dayPut, dayTotals, mealTotals, entryName, weightsAll, getSettings, streakAndAverage, photosByWeek, planWeek, parse, addDays } from '../store.js';
 
@@ -86,7 +86,7 @@ export async function hoy(app, profile) {
           <span class="muted" style="font-size:12px">${MONTHS[now.getMonth()]} · semana ${week}</span>
         </div>
       </div>
-      <a href="#/perfil" aria-label="Perfil, semana ${week}${tw ? ' de ' + tw : ''}" style="text-decoration:none">${avatar(profile, 42, settings.avatar)}</a>
+      <div class="row" style="gap:8px">${discreetBtn(17)}<a href="#/perfil" aria-label="Perfil, semana ${week}${tw ? ' de ' + tw : ''}" style="text-decoration:none">${avatar(profile, 42, settings.avatar)}</a></div>
     </header>
 
     ${paused ? html`<section class="glass card" style="flex-direction:row;align-items:center;gap:10px;padding:10px 10px 10px 14px">
@@ -115,7 +115,7 @@ export async function hoy(app, profile) {
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
       <button id="peso" class="glass card" style="padding:12px 14px;gap:2px;color:#fff;text-align:left">
         <span class="muted small">Peso</span>
-        <span class="num" style="font-size:20px;font-weight:600">${fmt(last ? last.kg : profile.weight, 1)} <span class="unit">kg</span></span>
+        <span class="num priv" style="font-size:20px;font-weight:600">${fmt(last ? last.kg : profile.weight, 1)} <span class="unit">kg</span></span>
         <span class="small" style="color:var(--crema);font-weight:600">Anotar peso</span></button>
       <a href="#/progreso?fotos=1" class="glass card" style="padding:12px 14px;gap:2px;text-decoration:none;color:#fff;flex-direction:row;align-items:center;gap:10px">
         <span style="position:relative;width:40px;height:40px;flex:none">

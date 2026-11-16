@@ -3,7 +3,7 @@ import { fmt } from './plan.js';
 import { colors } from './theme.js';
 
 // Versión visible (Perfil y correos de opinión). Súbela junto a VERSION de sw.js.
-export const APP_VERSION = '0.9.1';
+export const APP_VERSION = '0.9.2';
 
 export const html = (s, ...v) => s.reduce((a, str, i) => a + str + (i < v.length ? (v[i] ?? '') : ''), '');
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -300,3 +300,32 @@ export function logoMark(size = 48, color = '#F2EADB') {
   const u = 'lg' + (++logoN);
   return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-35 50 50)"><defs><mask id="g${u}"><rect width="100" height="100" fill="#fff"/><rect x="38.0" y="0" width="24" height="100" fill="#000"/></mask></defs><g mask="url(#g${u})"><ellipse cx="50" cy="50" rx="39.5" ry="19.5" fill="none" stroke="${color}" stroke-width="8"/></g><g fill="${color}"><path d="M50.00 3.00Q52.02 47.98 63.00 50.00Q52.02 52.02 50.00 97.00Q47.98 52.02 37.00 50.00Q47.98 47.98 50.00 3.00Z"/></g></g></svg>`;
 }
+
+// ---------- Modo discreto: tapa peso, IMC y kg para enseñar la app en persona ----------
+// Se guarda solo en este móvil (no se sincroniza).
+const DISCRETO = 'baku-discreto';
+export function isDiscreet() { try { return localStorage.getItem(DISCRETO) === '1'; } catch (_) { return false; } }
+export function applyDiscreet() { document.body.classList.toggle('discreto', isDiscreet()); }
+export function setDiscreet(on) {
+  try { localStorage.setItem(DISCRETO, on ? '1' : '0'); } catch (_) { /* sin almacenamiento */ }
+  applyDiscreet();
+  document.querySelectorAll('[data-discreto]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(on));
+    b.setAttribute('aria-label', on ? 'Mostrar peso e IMC' : 'Ocultar peso e IMC');
+    b.innerHTML = icon(on ? 'eyeoff' : 'eye', +b.dataset.size || 18, 2);
+  });
+  document.dispatchEvent(new CustomEvent('baku-discreto', { detail: on }));
+}
+export const discreetBtn = (size = 18, extra = '') => {
+  const on = isDiscreet();
+  return `<button class="icon-btn glass flat discreto-btn" data-discreto data-size="${size}" aria-pressed="${on}" aria-label="${on ? 'Mostrar peso e IMC' : 'Ocultar peso e IMC'}" ${extra}>${icon(on ? 'eyeoff' : 'eye', size, 2)}</button>`;
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-discreto]');
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const on = !isDiscreet();
+  setDiscreet(on);
+  toast(on ? 'Modo discreto: peso e IMC ocultos' : 'Peso e IMC visibles');
+});
+applyDiscreet();

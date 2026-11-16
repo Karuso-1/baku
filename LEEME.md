@@ -10,7 +10,7 @@ Web instalable (PWA) para Android. Los datos se guardan en el navegador del móv
 - Despensa: biblioteca de 612 alimentos (con un apartado Platos: rebozados, a la plancha, guisos, arroces, pasta, bocadillos y comida rápida) con buscador sin tildes, recetas (con foto), alimentos por categorías con me gusta/oculto, ficha con raciones, búsqueda en Open Food Facts, escáner de códigos de barras, alta manual y "Llena tu despensa".
 - Dietas y alérgenos: vegetariana, vegana, sin gluten, sin lactosa y los 14 alérgenos de la UE, con iconos en fichas y recetas. Lo que no encaja no sale en las propuestas.
 - Comedor: 65 platos típicos de comedor ya calculados y "Montar el menú de hoy" con ración pequeña, normal o grande.
-- Perfil: foto, plan, datos editables, pausar el plan, fondo (paletas o foto), copia de seguridad y restaurar.
+- Perfil: foto, plan, datos editables, modo discreto (tapa peso, IMC y kg; botón de ojo en Hoy y Progreso, solo en ese móvil), pausar el plan, fondo (paletas o foto), copia de seguridad y restaurar.
 - Avisos (con cuenta): pesaje y foto semanal activados; planificar la semana, apuntar comidas y "llevas días sin entrar" opcionales. Máximo 1 al día, horas de silencio, pausa, y botón "No me avises de esto" en cada aviso.
 - Privacidad: página `#/privacidad` y casilla de consentimiento al crear cuenta.
 - Objetivo alcanzado: pasar a mantenimiento o nuevo objetivo.
