@@ -8,7 +8,7 @@ const FACTORS = [
   [/arroz/, 2.7],
   [/quinoa/, 3],
   [/pasta fresca|tortellini|ravioli/, 1.5],
-  [/pasta|fideos|noodles|lasana|macarron|espagueti|tallarin|espiral/, 2.3],
+  [/pasta|fideos|noodles|lasana|macarron|espagueti|tallarin|espiral|plumas|penne|lacito/, 2.3],
   [/cuscus/, 2.5],
   [/bulgur/, 2.5],
   [/polenta/, 4],

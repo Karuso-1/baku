@@ -7,7 +7,7 @@
 //   Alérgenos (los 14 de la UE): gl gluten · cr crustáceos · hu huevo · pe pescado · ca cacahuete · so soja
 //   la leche · fc frutos de cáscara · ap apio · mo mostaza · se sésamo · su sulfitos · al altramuces · ml moluscos
 export const CATEGORIES = ['Proteínas', 'Legumbres', 'Hidratos', 'Verduras', 'Frutas', 'Lácteos', 'Grasas', 'Bebidas', 'Platos', 'Otros'];
-export const CATALOG_VERSION = 4;
+export const CATALOG_VERSION = 5;
 
 const f = (name, cat, kcal, p, h, g, portions = [], tags = '') => ({ name, cat, kcal, p, h, g, portions, tags: tags.split(' ').filter(Boolean) });
 const r = (name, g, def = false) => ({ name, g, default: def });
@@ -224,6 +224,15 @@ const MORE = [
   f('Arroz basmati (crudo)', H, 355, 8, 78, 0.8, [r('1 ración', 80, true)]),
   f('Arroz vaporizado (crudo)', H, 355, 7.5, 79, 0.6, [r('1 ración', 80, true)]),
   f('Pasta cocida', H, 155, 5.5, 31, 0.9, [r('1 plato', 200, true)], 'gl'),
+  // Formas de pasta solas (sin salsa), para buscarlas por su nombre
+  f('Macarrones (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
+  f('Espaguetis (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
+  f('Tallarines (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
+  f('Espirales (crudas)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
+  f('Plumas / penne (crudas)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
+  f('Lacitos (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
+  f('Fideos finos (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 60, true)], 'gl'),
+  f('Arroz redondo (crudo)', H, 355, 7, 79, 0.6, [r('1 ración', 80, true)]),
   f('Pasta integral (cruda)', H, 345, 13, 64, 2.5, [r('1 ración', 80, true)], 'gl'),
   f('Pasta sin gluten (cruda)', H, 360, 7, 79, 1.5, [r('1 ración', 80, true)]),
   f('Pasta de lentejas (cruda)', H, 340, 25, 50, 2, [r('1 ración', 80, true)]),

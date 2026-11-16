@@ -107,7 +107,7 @@ export function matchScore(q, ...fields) {
 }
 export function searchSort(list, q, fields = (x) => [x.name, x.brand]) {
   if (!q) return list;
-  return list.map((x) => [x, matchScore(q, ...fields(x))]).filter(([, sc]) => sc).sort((a, b) => b[1] - a[1] || a[0].name.length - b[0].name.length).map(([x]) => x);
+  return list.map((x) => [x, matchScore(q, ...fields(x))]).filter(([, sc]) => sc).sort((a, b) => b[1] - a[1] || (a[0].cat === 'Platos') - (b[0].cat === 'Platos') || a[0].name.length - b[0].name.length).map(([x]) => x);
 }
 
 export const foodsAll = () => db.all('foods');
