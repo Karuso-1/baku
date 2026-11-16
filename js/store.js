@@ -101,7 +101,12 @@ export function matchScore(q, ...fields) {
   const words = norm(q).split(/\s+/).filter(Boolean);
   if (!words.length) return 1;
   const hay = norm(fields.filter(Boolean).join(' '));
-  if (!words.every((w) => hay.includes(w))) return 0;
+  if (!words.every((w) => hay.includes(w))) {
+    // Faltas típicas: sin h, b/v, ll/y (orchata → horchata, cerbeza → cerveza)
+    const loose = (t) => t.replace(/h/g, '').replace(/v/g, 'b').replace(/ll/g, 'y');
+    const lh = loose(hay);
+    return words.every((w) => lh.includes(loose(w))) ? 0.5 : 0;
+  }
   const name = norm(fields[0]);
   return name.startsWith(words[0]) ? 3 : name.split(/[^a-z0-9ñ]+/).some((t) => t.startsWith(words[0])) ? 2 : 1;
 }

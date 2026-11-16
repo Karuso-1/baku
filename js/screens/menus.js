@@ -272,9 +272,15 @@ export async function anadir(app, profile, params) {
   const render = () => {
     const recipes = searchSort(Object.values(m.recipes).filter((r) => !r.comedor)
       .sort((a, b) => (b.meals?.includes(meal) ? 1 : 0) - (a.meals?.includes(meal) ? 1 : 0) || a.name.localeCompare(b.name)), q);
+    // Al buscar se mira en todas las categorías; lo oculto sale al final
     const foods = searchSort(Object.values(m.foods)
-      .filter((f) => !f.hidden && (cat === 'Todas' || f.cat === cat))
-      .sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0) || a.name.localeCompare(b.name)), q);
+      .filter((f) => (q || !f.hidden) && (q || cat === 'Todas' || f.cat === cat))
+      .sort((a, b) => (a.hidden ? 1 : 0) - (b.hidden ? 1 : 0) || (b.liked ? 1 : 0) - (a.liked ? 1 : 0) || a.name.localeCompare(b.name)), q)
+      .sort((a, b) => (a.hidden ? 1 : 0) - (b.hidden ? 1 : 0));
+    const foodRow = (f) => `<button class="list-row" data-f="${f.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%;${f.hidden ? 'opacity:.6' : ''}"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${f.liked ? `<span style="color:var(--crema)">${icon('heart', 11, 2)}</span> ` : ''}${esc(f.name)}</span><span class="muted small num">${f.hidden ? 'Oculto · ' : ''}${f.cat} · ${fmt(f.kcal)} kcal / 100 g${warn(tagsOf([f]))}</span></span>${icon('plus', 16, 2.2)}</button>`;
+    const recipeRow = (r) => `<button class="list-row" data-r="${r.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(r.name)}</span><span class="muted small">${(r.meals || []).map((k) => MEAL_NAME[k]).join(' · ') || 'Sin comida asignada'}${warn(recipeTags(r, m.foods))}</span></span><span class="num" style="font-size:13px;font-weight:600">${fmt(recipeServing(r, m.foods).kcal)} <span class="unit">kcal</span></span>${icon('plus', 16, 2.2)}</button>`;
+    // Si buscas en una pestaña, también enseña lo que coincide en la otra
+    const also = (title, rows) => (rows ? `<h2 class="h2" style="padding:14px 0 2px">${title}</h2>${rows}` : '');
     const comedor = searchSort(Object.values(m.recipes).filter((r) => r.comedor), q);
     if (tab === 'comedor') {
       $('#list', app).innerHTML = `<a class="btn small" href="#/comedor/menu?fecha=${date}&comida=${meal}&volver=${encodeURIComponent(ret)}" style="margin:8px 0 4px">${icon('plus', 16, 2.2)}Montar menú completo</a>`
@@ -290,11 +296,13 @@ export async function anadir(app, profile, params) {
       ${recents.map((e, i) => `<button class="list-row" data-rc="${i}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%;${i ? '' : 'border-top:0'}"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(entryName(e, m))}</span><span class="muted small num">${entryAmount(e, m)}</span></span><span class="num" style="font-size:13px;font-weight:600">${fmt(entryNutr(e, m).kcal)} <span class="unit">kcal</span></span>${icon('plus', 16, 2.2)}</button>`).join('')}
       </div><div style="height:1px;background:rgba(242,234,219,0.18);margin:6px 0 2px"></div>` : '';
     $('#list', app).innerHTML = rec + (tab === 'recetas'
-      ? (recipes.length ? recipes.map((r) => `<button class="list-row" data-r="${r.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(r.name)}</span><span class="muted small">${(r.meals || []).map((k) => MEAL_NAME[k]).join(' · ') || 'Sin comida asignada'}${warn(recipeTags(r, m.foods))}</span></span><span class="num" style="font-size:13px;font-weight:600">${fmt(recipeServing(r, m.foods).kcal)} <span class="unit">kcal</span></span>${icon('plus', 16, 2.2)}</button>`).join('')
-        : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">No tienes recetas con ese nombre.</p>`)
+      ? (recipes.length ? recipes.map(recipeRow).join('')
+        : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">${q && foods.length ? 'Ninguna receta, pero sí alimentos:' : 'No tienes recetas con ese nombre.'}</p>`)
+        + (q ? also('Alimentos', foods.slice(0, 12).map(foodRow).join('')) : '')
         + `<a class="btn small ghost" href="#/receta/nueva" style="margin-top:8px">${icon('plus', 16, 2.2)}Nueva receta</a>`
-      : (foods.length ? foods.slice(0, 80).map((f) => `<button class="list-row" data-f="${f.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${f.liked ? `<span style="color:var(--crema)">${icon('heart', 11, 2)}</span> ` : ''}${esc(f.name)}</span><span class="muted small num">${f.cat} · ${fmt(f.kcal)} kcal / 100 g${warn(tagsOf([f]))}</span></span>${icon('plus', 16, 2.2)}</button>`).join('')
+      : (foods.length ? foods.slice(0, 80).map(foodRow).join('')
         : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">No está en tu despensa. Búscalo en Open Food Facts desde la Despensa o escanéalo.</p>`)
+        + (q ? also('Recetas', recipes.slice(0, 5).map(recipeRow).join('')) : '')
         + `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px"><a class="btn small ghost" href="#/escaner">${icon('scan', 16)}Escanear</a><a class="btn small ghost" href="#/despensa/alimentos">${icon('search', 16)}Buscar más</a></div>`);
     $$('[data-rc]', app).forEach((b) => b.addEventListener('click', () => { const e = recents[+b.dataset.rc]; commit(e.kind === 'recipe' ? { kind: 'recipe', id: e.id, servings: e.servings || 1 } : { kind: 'food', id: e.id, g: e.g, ...(e.alt ? { alt: e.alt } : {}) }); }));
     $$('[data-r]', app).forEach((b) => b.addEventListener('click', () => addRecipe(m.recipes[b.dataset.r])));
@@ -341,7 +349,7 @@ export function foodAmountSheet(f, cta, onOk, opts = {}) {
   const ST = { crudo: 'En crudo', cocinado: 'Cocinado' };
   const note = () => info ? (st === info.state
     ? `Los valores de este alimento son ${info.state === 'crudo' ? 'en crudo' : 'ya cocinado'}.`
-    : `Lo paso a ${info.state === 'crudo' ? 'crudo' : 'cocinado'}: ${shown()} g ${st === 'cocinado' ? 'cocinado' : 'en crudo'} ≈ ${Math.round(base)} g ${info.state === 'crudo' ? 'en crudo' : 'cocinado'} (al cocerse pesa unas ${fmtFactor(info.factor)} veces más).`) : '';
+    : `Lo paso a ${info.state === 'crudo' ? 'crudo' : 'cocinado'}: ${shown()} g ${st === 'cocinado' ? 'cocinado' : 'en crudo'} ≈ ${Math.round(base)} g ${info.state === 'crudo' ? 'en crudo' : 'cocinado'} (${info.factor >= 1 ? `al cocerse pesa unas ${fmtFactor(info.factor)} veces más` : `al cocinarse pierde agua y pesa un ${Math.round((1 - info.factor) * 100)} % menos`}).`) : '';
   sheet(f.name, html`
     ${info ? `<div class="col" style="gap:6px"><span class="label">¿Cómo lo has pesado?</span>
       <div class="seg glass flat" role="radiogroup" aria-label="Cómo lo has pesado" style="height:42px">${['crudo', 'cocinado'].map((k) => `<button role="radio" data-st="${k}" aria-checked="${k === st}">${ST[k]}</button>`).join('')}</div>
