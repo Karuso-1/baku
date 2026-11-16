@@ -247,9 +247,9 @@ export async function fichaAlimento(app, profile, id) {
   $('#add', app).addEventListener('click', () => {
     const today = todayISO();
     const meal = ['desayuno', 'comida', 'merienda', 'cena'][Math.min(3, Math.floor(Math.max(0, new Date().getHours() - 7) / 4))];
-    foodAmountSheet(f, `Añadir a hoy (${MEAL_NAME[meal].toLowerCase()})`, async (g) => {
+    foodAmountSheet(f, `Añadir a hoy (${MEAL_NAME[meal].toLowerCase()})`, async (g, alt) => {
       const day = await dayGet(today);
-      day.meals[meal].push({ kind: 'food', id: f.id, g });
+      day.meals[meal].push({ kind: 'food', id: f.id, g, ...(alt ? { alt } : {}) });
       await dayPut(day);
       toast(`Añadido a ${MEAL_NAME[meal].toLowerCase()}`);
     });

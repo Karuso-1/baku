@@ -149,6 +149,7 @@ export function entryNutr(e, m) {
 export const entryName = (e, m) => (e.kind === 'recipe' ? m.recipes[e.id]?.name : m.foods[e.id]?.name) || 'Eliminado';
 export function entryAmount(e, m) {
   if (e.kind === 'recipe') return e.servings === 1 ? '1 ración' : `${String(e.servings).replace('.', ',')} raciones`;
+  if (e.alt) return `${Math.round(e.alt.g)} g ${e.alt.st === 'cocinado' ? 'cocinado' : 'en crudo'}`;
   const f = m.foods[e.id];
   const p = f?.portions?.find((x) => Math.abs(x.g - e.g) < 0.5);
   return p ? p.name : `${Math.round(e.g)} g`;

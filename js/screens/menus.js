@@ -8,6 +8,7 @@ import { db } from '../db.js';
 import { fillDay, swapMeal } from '../fill.js';
 import { CATEGORIES } from '../seed.js';
 import { mealNow } from './hoy.js';
+import { cookInfo, toState, fromState, fmtFactor } from '../coccion.js';
 
 const WD = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const WL = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -51,9 +52,8 @@ export async function menus(app, profile, params) {
         ${items.length ? `<span class="col" style="align-items:flex-end"><span class="num" style="font-size:15px;font-weight:600">${fmt(t.kcal)} <span class="unit">kcal</span></span><span class="muted num" style="font-size:10px">${macroLine(t)}</span></span>` : ''}</div>
       ${items.map((e, i) => {
         const n = entryNutr(e, m);
-        const href = e.kind === 'recipe' ? `#/receta/${e.id}` : `#/alimento/${e.id}`;
-        return `<div class="list-row" style="padding:6px 0"><a href="${href}" class="col grow" style="min-width:0;text-decoration:none;color:#fff"><span class="ellipsis" style="font-size:14px">${esc(entryName(e, m))}</span><span class="muted small">${e.kind === 'recipe' ? 'Receta' : 'Alimento'} · ${entryAmount(e, m)}</span></a>
-          <span class="num" style="font-size:13px;font-weight:600;width:62px;text-align:right">${fmt(n.kcal)} <span class="unit">kcal</span></span>
+        return `<div class="list-row" style="padding:6px 0"><button data-edit="${k}:${i}" aria-label="Cambiar la cantidad de ${esc(entryName(e, m))}" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;padding:0;background:none;color:#fff;text-align:left;font:inherit"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px">${esc(entryName(e, m))}</span><span class="muted small row" style="gap:4px">${e.kind === 'recipe' ? 'Receta' : 'Alimento'} · ${entryAmount(e, m)}<span style="display:flex;opacity:.7">${icon('edit', 11, 2)}</span></span></span>
+          <span class="num" style="font-size:13px;font-weight:600;width:62px;text-align:right">${fmt(n.kcal)} <span class="unit">kcal</span></span></button>
           <button class="icon-btn plain" data-del="${k}:${i}" aria-label="Quitar ${esc(entryName(e, m))}" style="color:var(--apagado)">${icon('close', 14, 2)}</button></div>`;
       }).join('')}
       <div class="row" style="gap:14px;padding-top:4px">
@@ -92,6 +92,22 @@ export async function menus(app, profile, params) {
 
   const save = async () => { await dayPut(day); menus(app, profile, params); };
   $$('.meal-toggle', app).forEach((b) => b.addEventListener('click', () => { day.done[b.dataset.meal] = !day.done[b.dataset.meal]; save(); }));
+  $$('[data-edit]', app).forEach((b) => b.addEventListener('click', () => {
+    const [k, i] = b.dataset.edit.split(':');
+    const e = day.meals[k][+i];
+    const href = e.kind === 'recipe' ? `#/receta/${e.id}` : `#/alimento/${e.id}`;
+    const extra = `<div class="row" style="justify-content:space-between;padding:2px 4px"><a class="link" href="${href}" style="font-size:13px">Ver ${e.kind === 'recipe' ? 'receta' : 'ficha'}</a><button class="link" id="quitar" style="font-size:13px;color:var(--oxido-claro)">Quitar de ${MEAL_NAME[k].toLowerCase()}</button></div>`;
+    const onMount = ({ el, close }) => $('#quitar', el).addEventListener('click', () => { close(); day.meals[k].splice(+i, 1); if (!day.meals[k].length) delete day.done[k]; save(); });
+    if (e.kind === 'recipe') {
+      const r = m.recipes[e.id];
+      if (!r) return;
+      recipeAmountSheet(r, m, 'Guardar cambios', (sv) => { e.servings = sv; save(); toast('Cantidad cambiada'); }, { servings: e.servings || 1, extra, onMount });
+    } else {
+      const f = m.foods[e.id];
+      if (!f) return;
+      foodAmountSheet(f, 'Guardar cambios', (g, alt) => { e.g = g; if (alt) e.alt = alt; else delete e.alt; save(); toast('Cantidad cambiada'); }, { g: e.g, alt: e.alt, extra, onMount });
+    }
+  }));
   $$('[data-del]', app).forEach((b) => b.addEventListener('click', () => { const [k, i] = b.dataset.del.split(':'); day.meals[k].splice(+i, 1); if (!day.meals[k].length) delete day.done[k]; save(); }));
   $$('[data-swap]', app).forEach((b) => b.addEventListener('click', () => {
     const k = b.dataset.swap;
@@ -280,7 +296,7 @@ export async function anadir(app, profile, params) {
       : (foods.length ? foods.slice(0, 80).map((f) => `<button class="list-row" data-f="${f.id}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${f.liked ? `<span style="color:var(--crema)">${icon('heart', 11, 2)}</span> ` : ''}${esc(f.name)}</span><span class="muted small num">${f.cat} · ${fmt(f.kcal)} kcal / 100 g${warn(tagsOf([f]))}</span></span>${icon('plus', 16, 2.2)}</button>`).join('')
         : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">No está en tu despensa. Búscalo en Open Food Facts desde la Despensa o escanéalo.</p>`)
         + `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px"><a class="btn small ghost" href="#/escaner">${icon('scan', 16)}Escanear</a><a class="btn small ghost" href="#/despensa/alimentos">${icon('search', 16)}Buscar más</a></div>`);
-    $$('[data-rc]', app).forEach((b) => b.addEventListener('click', () => { const e = recents[+b.dataset.rc]; commit(e.kind === 'recipe' ? { kind: 'recipe', id: e.id, servings: e.servings || 1 } : { kind: 'food', id: e.id, g: e.g }); }));
+    $$('[data-rc]', app).forEach((b) => b.addEventListener('click', () => { const e = recents[+b.dataset.rc]; commit(e.kind === 'recipe' ? { kind: 'recipe', id: e.id, servings: e.servings || 1 } : { kind: 'food', id: e.id, g: e.g, ...(e.alt ? { alt: e.alt } : {}) }); }));
     $$('[data-r]', app).forEach((b) => b.addEventListener('click', () => addRecipe(m.recipes[b.dataset.r])));
     $$('[data-f]', app).forEach((b) => b.addEventListener('click', () => addFood(m.foods[b.dataset.f])));
     $('#cats', app).hidden = tab !== 'alimentos';
@@ -293,24 +309,8 @@ export async function anadir(app, profile, params) {
     location.hash = ret;
     setTimeout(() => toast(`Añadido a ${MEAL_NAME[meal].toLowerCase()}`), 250);
   };
-  const addRecipe = (r) => {
-    let k = 1;
-    const per = recipeServing(r, m.foods);
-    sheet(r.name, html`<div class="between"><span class="label">Raciones</span>
-      <div class="stepper glass flat" style="width:170px"><button data-k="-0.5" aria-label="Menos">${icon('minus', 14, 2.6)}</button><output class="num" id="k">1</output><button data-k="0.5" aria-label="Más">${icon('plus', 14, 2.6)}</button></div></div>
-      <div class="between"><span class="muted">Total</span><span class="num" id="t" style="font-size:20px;font-weight:600">${fmt(per.kcal)} <span class="unit">kcal</span></span></div>
-      <button class="btn" id="ok">Añadir a ${MEAL_NAME[meal].toLowerCase()}</button>`, {
-      onMount: ({ el, close }) => {
-        $$('[data-k]', el).forEach((b) => b.addEventListener('click', () => {
-          k = Math.max(0.5, Math.min(6, k + +b.dataset.k));
-          $('#k', el).textContent = String(k).replace('.', ',');
-          $('#t', el).innerHTML = `${fmt(per.kcal * k)} <span class="unit">kcal</span>`;
-        }));
-        $('#ok', el).addEventListener('click', () => { close(); commit({ kind: 'recipe', id: r.id, servings: k }); });
-      },
-    });
-  };
-  const addFood = (f) => foodAmountSheet(f, `Añadir a ${MEAL_NAME[meal].toLowerCase()}`, (g) => commit({ kind: 'food', id: f.id, g }));
+  const addRecipe = (r) => recipeAmountSheet(r, m, `Añadir a ${MEAL_NAME[meal].toLowerCase()}`, (k) => commit({ kind: 'recipe', id: r.id, servings: k }));
+  const addFood = (f) => foodAmountSheet(f, `Añadir a ${MEAL_NAME[meal].toLowerCase()}`, (g, alt) => commit({ kind: 'food', id: f.id, g, ...(alt ? { alt } : {}) }));
 
   app.innerHTML = html`<div class="screen">
     <div class="row" style="gap:12px"><button class="icon-btn glass flat" id="back" aria-label="Volver">${icon('back', 18, 2)}</button>
@@ -329,25 +329,73 @@ export async function anadir(app, profile, params) {
   render();
 }
 
-// Hoja para elegir cantidad de un alimento: raciones habituales o gramos
-export function foodAmountSheet(f, cta, onOk) {
+// Hoja para elegir cantidad de un alimento: raciones habituales o gramos.
+// Si es pasta, arroz, legumbre… deja elegir si se ha pesado en crudo o ya cocinado.
+// opts: { g, alt, extra } para editar algo ya apuntado. onOk(g, alt): g siempre en el estado del alimento.
+export function foodAmountSheet(f, cta, onOk, opts = {}) {
   const def = f.portions?.find((p) => p.default) || f.portions?.[0];
-  let g = def ? def.g : 100;
+  const info = cookInfo(f);
+  let st = opts.alt?.st || info?.state || null;
+  let base = opts.g ?? (def ? def.g : 100); // gramos en el estado del alimento
+  const shown = () => Math.round(toState(base, info, st));
+  const ST = { crudo: 'En crudo', cocinado: 'Cocinado' };
+  const note = () => info ? (st === info.state
+    ? `Los valores de este alimento son ${info.state === 'crudo' ? 'en crudo' : 'ya cocinado'}.`
+    : `Lo paso a ${info.state === 'crudo' ? 'crudo' : 'cocinado'}: ${shown()} g ${st === 'cocinado' ? 'cocinado' : 'en crudo'} ≈ ${Math.round(base)} g ${info.state === 'crudo' ? 'en crudo' : 'cocinado'} (al cocerse pesa unas ${fmtFactor(info.factor)} veces más).`) : '';
   sheet(f.name, html`
-    ${f.portions?.length ? `<div class="hscroll">${f.portions.map((p) => `<button class="chip-s" data-g="${p.g}" aria-pressed="${p.g === g}">${esc(p.name)} · ${p.g} g</button>`).join('')}</div>` : ''}
-    <div class="between"><label class="label" for="g">Cantidad</label><span class="row" style="gap:6px"><input id="g" class="input glass flat num" type="number" inputmode="decimal" min="1" value="${g}" style="width:110px;height:46px;text-align:right"><span class="unit">g</span></span></div>
+    ${info ? `<div class="col" style="gap:6px"><span class="label">¿Cómo lo has pesado?</span>
+      <div class="seg glass flat" role="radiogroup" aria-label="Cómo lo has pesado" style="height:42px">${['crudo', 'cocinado'].map((k) => `<button role="radio" data-st="${k}" aria-checked="${k === st}">${ST[k]}</button>`).join('')}</div>
+      <span class="muted small" id="note" style="line-height:1.4">${note()}</span></div>` : ''}
+    ${f.portions?.length ? `<div class="hscroll" id="por">${f.portions.map((p) => `<button class="chip-s" data-g="${p.g}" aria-pressed="${Math.abs(p.g - base) < 0.5}">${esc(p.name)} · <span class="num">${Math.round(toState(p.g, info, st))}</span> g</button>`).join('')}</div>` : ''}
+    <div class="between"><label class="label" for="g">Cantidad</label><span class="row" style="gap:6px"><input id="g" class="input glass flat num" type="number" inputmode="decimal" min="1" value="${shown()}" style="width:110px;height:46px;text-align:right"><span class="unit">g</span></span></div>
     <div class="between"><span class="muted num" id="mac"></span><span class="num" id="t" style="font-size:20px;font-weight:600"></span></div>
-    <button class="btn" id="ok">${cta}</button>`, {
+    <button class="btn" id="ok">${cta}</button>${opts.extra || ''}`, {
     onMount: ({ el, close }) => {
       const upd = () => {
-        const n = foodNutr(f, g);
+        const n = foodNutr(f, base);
         $('#t', el).innerHTML = `${fmt(n.kcal)} <span class="unit">kcal</span>`;
         $('#mac', el).textContent = macroLine(n);
+        if (info) $('#note', el).textContent = note();
       };
-      $$('[data-g]', el).forEach((b) => b.addEventListener('click', () => { g = +b.dataset.g; $('#g', el).value = g; $$('[data-g]', el).forEach((x) => x.setAttribute('aria-pressed', x === b)); upd(); }));
-      $('#g', el).addEventListener('input', (e) => { g = Math.max(0, +e.target.value || 0); $$('[data-g]', el).forEach((x) => x.setAttribute('aria-pressed', +x.dataset.g === g)); upd(); });
-      $('#ok', el).addEventListener('click', () => { if (g > 0) { close(); onOk(g); } });
+      const mark = () => $$('[data-g]', el).forEach((x) => x.setAttribute('aria-pressed', Math.abs(+x.dataset.g - base) < 0.5));
+      $$('[data-g]', el).forEach((b) => b.addEventListener('click', () => { base = +b.dataset.g; $('#g', el).value = shown(); mark(); upd(); }));
+      $('#g', el).addEventListener('input', (e) => { base = fromState(Math.max(0, +e.target.value || 0), info, st); mark(); upd(); });
+      $$('[data-st]', el).forEach((b) => b.addEventListener('click', () => {
+        // Cambia cómo se lee el número escrito, no la comida: 200 g de pasta cocinada ≠ 200 g en crudo
+        const typed = Math.max(0, +$('#g', el).value || 0);
+        st = b.dataset.st;
+        base = fromState(typed, info, st);
+        $$('[data-st]', el).forEach((x) => x.setAttribute('aria-checked', x === b));
+        $$('[data-g]', el).forEach((x) => { x.querySelector('.num').textContent = Math.round(toState(+x.dataset.g, info, st)); });
+        mark(); upd();
+      }));
+      $('#ok', el).addEventListener('click', () => {
+        if (!(base > 0)) return;
+        close();
+        onOk(Math.round(base * 10) / 10, info && st !== info.state ? { g: Math.max(0, +$('#g', el).value || 0), st } : undefined);
+      });
+      opts.onMount && opts.onMount({ el, close });
       upd();
+    },
+  });
+}
+
+// Hoja de raciones de una receta (añadir o cambiar)
+export function recipeAmountSheet(r, m, cta, onOk, opts = {}) {
+  let k = opts.servings || 1;
+  const per = recipeServing(r, m.foods);
+  sheet(r.name, html`<div class="between"><span class="label">Raciones</span>
+    <div class="stepper glass flat" style="width:170px"><button data-k="-0.5" aria-label="Menos">${icon('minus', 14, 2.6)}</button><output class="num" id="k">${String(k).replace('.', ',')}</output><button data-k="0.5" aria-label="Más">${icon('plus', 14, 2.6)}</button></div></div>
+    <div class="between"><span class="muted">Total</span><span class="num" id="t" style="font-size:20px;font-weight:600">${fmt(per.kcal * k)} <span class="unit">kcal</span></span></div>
+    <button class="btn" id="ok">${cta}</button>${opts.extra || ''}`, {
+    onMount: ({ el, close }) => {
+      $$('[data-k]', el).forEach((b) => b.addEventListener('click', () => {
+        k = Math.max(0.5, Math.min(6, k + +b.dataset.k));
+        $('#k', el).textContent = String(k).replace('.', ',');
+        $('#t', el).innerHTML = `${fmt(per.kcal * k)} <span class="unit">kcal</span>`;
+      }));
+      $('#ok', el).addEventListener('click', () => { close(); onOk(k); });
+      opts.onMount && opts.onMount({ el, close });
     },
   });
 }

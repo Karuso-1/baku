@@ -3,7 +3,7 @@ import { fmt } from './plan.js';
 import { colors } from './theme.js';
 
 // Versión visible (Perfil y correos de opinión). Súbela junto a VERSION de sw.js.
-export const APP_VERSION = '0.9.2';
+export const APP_VERSION = '0.9.3';
 
 export const html = (s, ...v) => s.reduce((a, str, i) => a + str + (i < v.length ? (v[i] ?? '') : ''), '');
 export const $ = (sel, root = document) => root.querySelector(sel);
