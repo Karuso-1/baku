@@ -3,7 +3,7 @@ import { fmt } from './plan.js';
 import { colors } from './theme.js';
 
 // Versión visible (Perfil y correos de opinión). Súbela junto a VERSION de sw.js.
-export const APP_VERSION = '0.9.4';
+export const APP_VERSION = '0.9.5';
 
 export const html = (s, ...v) => s.reduce((a, str, i) => a + str + (i < v.length ? (v[i] ?? '') : ''), '');
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -59,6 +59,7 @@ export const ICON = {
   mail: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>',
   bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>',
   shield: '<path d="M12 3 5 6v5.5c0 4.3 3 7.8 7 9.5 4-1.7 7-5.2 7-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>',
+  moon: '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
   sync: '<path d="M19.5 12a7.5 7.5 0 0 1-13.1 5"/><path d="M4.5 12a7.5 7.5 0 0 1 13.1-5"/><path d="M17.6 3.5V7h-3.5"/><path d="M6.4 20.5V17h3.5"/>',
 };
 export const icon = (name, size = 18, sw = 1.9) => svg(ICON[name], size, sw);

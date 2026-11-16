@@ -1,6 +1,7 @@
 // Pantalla Hoy.
 import { html, icon, bowl, tube, $, $$, blobUrl, esc, toast, discreetBtn } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
+import { closeBlock, bindClose } from '../cierre.js';
 import { MEALS, maps, dayGet, dayPut, dayTotals, mealTotals, entryName, weightsAll, getSettings, streakAndAverage, photosByWeek, planWeek, parse, addDays } from '../store.js';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -128,7 +129,8 @@ export async function hoy(app, profile) {
 
     ${anyMeal ? html`<section class="glass card" style="gap:0;padding:10px 14px 6px">
       <div class="between" style="padding-bottom:4px"><h2 class="h2">Comidas de hoy</h2><a class="link" href="#/menus?fecha=${date}" style="font-size:12px">Ver el día</a></div>
-      ${MEALS.map(mealRow).join('')}</section>`
+      ${MEALS.map(mealRow).join('')}</section>
+    ${closeBlock(day)}`
     : html`<section class="glass card" style="align-items:center;text-align:center;padding:18px 16px">
       <h2 style="font-size:17px;font-weight:600">Tu cuenco está vacío</h2>
       <p class="muted" style="font-size:13px;line-height:1.4;max-width:260px">Añade lo que comas o planifica el menú de la semana.</p>
@@ -144,6 +146,8 @@ export async function hoy(app, profile) {
       ${avg === null ? '' : html`<div style="position:relative;display:flex;gap:4px;padding-top:4px">${bars}<span style="position:absolute;left:0;right:0;top:${goalY + 4}px;border-top:1px dashed rgba(156,199,175,0.7)"></span></div>`}
     </section>
   </div>`;
+
+  bindClose(app, date, profile, () => hoy(app, profile));
 
   // Marcar comida hecha / pendiente
   $$('.meal-toggle', app).forEach((b) => b.addEventListener('click', async () => {

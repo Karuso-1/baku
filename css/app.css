@@ -289,3 +289,11 @@ html, body { overflow-x: hidden; }
 body.discreto .priv, body.discreto .priv * { color: transparent !important; text-shadow: 0 0 0.42em rgba(242,234,219,0.85); user-select: none; -webkit-user-select: none; }
 body.discreto .priv-svg { visibility: hidden; }
 .discreto-btn[aria-pressed="true"] { background: var(--crema); color: var(--fondo); }
+
+/* ---------- Cerrar el día ---------- */
+.cierre-row { flex-direction: row; align-items: center; gap: 10px; padding: 10px 14px; color: #fff; border: 0; font: inherit; width: 100%; }
+.cierre-ico { width: 32px; height: 32px; border-radius: 999px; background: rgba(242,234,219,0.14); color: var(--crema); display: flex; align-items: center; justify-content: center; flex: none; }
+.cierre-card { border-radius: 24px; padding: 16px; display: flex; flex-direction: column; }
+.cierre-status { align-self: flex-start; margin-top: 8px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid; }
+.cierre-msg { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 4px 14px; border-left: 3px solid; animation: cierre-in .5s .15s ease both; }
+@keyframes cierre-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

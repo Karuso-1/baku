@@ -217,7 +217,8 @@ export async function streakAndAverage(profile, settings) {
     d = addDays(d, -1);
   }
   const ws = weekStartOf(today, settings.weekStart);
-  const closed = weekDays(ws).filter((x) => x < today && x >= profile.startDate && logged(x) && !inPause(x));
+  // Cuentan los días pasados con comidas hechas y hoy si ya se ha cerrado
+  const closed = weekDays(ws).filter((x) => (x < today || (x === today && days[x]?.closedAt)) && x >= profile.startDate && logged(x) && !inPause(x));
   const perDay = weekDays(ws).map((x) => ({ date: x, kcal: days[x] ? dayTotals(days[x], m, true).kcal : 0, closed: closed.includes(x) }));
   const avg = closed.length ? closed.reduce((s, x) => s + dayTotals(days[x], m, true).kcal, 0) / closed.length : null;
   return { streak, avg, perDay };
