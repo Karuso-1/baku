@@ -44,7 +44,7 @@ export async function recetaForm(app, profile, id) {
         <textarea id="pasos" class="input glass flat" rows="4" placeholder="Cuece la pasta…&#10;Mientras, dora el pollo…" style="height:auto;padding:12px 14px;font-size:14px;line-height:1.45;resize:vertical">${esc((r.steps || []).join('\n'))}</textarea></div>
       <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
         <span class="col"><span class="muted small">Por ración</span><span class="num" style="font-size:22px;font-weight:600">${fmt(per.kcal)} <span class="unit">kcal</span></span></span>
-        <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', per.p], ['Hidratos', per.h], ['Grasas', per.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
+        <span class="num row" style="gap:10px;font-size:12px">${[['Proteína', per.p], ['Hidratos', per.h], ['Grasas', per.g], ['Fibra', per.fi]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
       <div class="spacer"></div>
       <button class="btn" id="save" ${r.name.trim() && r.items.length ? '' : 'disabled'}>Guardar receta</button>
     </div>`;
@@ -125,7 +125,7 @@ export async function recetaDetalle(app, profile, id) {
       <div class="row" style="gap:6px;flex-wrap:wrap">${r.comedor ? '<span class="pill">Comedor</span>' : ''}${(r.meals || []).map((k) => `<span class="pill">${MEAL_NAME[k]}</span>`).join('')}<span class="pill">${r.servings} ${r.servings === 1 ? 'ración' : 'raciones'}</span></div></div>
     <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
       <span class="col"><span class="muted small">Por ración</span><span class="num" style="font-size:22px;font-weight:600">${fmt(per.kcal)} <span class="unit">kcal</span></span></span>
-      <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', per.p], ['Hidratos', per.h], ['Grasas', per.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
+      <span class="num row" style="gap:10px;font-size:12px">${[['Proteína', per.p], ['Hidratos', per.h], ['Grasas', per.g], ['Fibra', per.fi]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
     ${dietCard(recipeTags(r, m.foods), m.diet, { recipe: true })}
     <section class="glass card" style="gap:0;padding:12px 14px 6px">
       <div class="between" style="padding-bottom:4px"><h2 class="h2">Alimentos</h2><span class="muted small num">Receta entera · ${fmt(total)} kcal</span></div>

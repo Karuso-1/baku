@@ -13,10 +13,10 @@ const TIPS = {
     ['#opts', 'Rellena en un toque', 'Desde aquí puedes rellenar el día o la semana con tus recetas, copiar un día o repetir la semana anterior.'],
   ],
   despensa: [
-    ['[aria-label="Apartados"]', 'Tu despensa', 'Recetas: tus platos. Alimentos: más de 500 con buscador. Comedor: platos típicos ya calculados.'],
+    ['[aria-label="Apartados"]', 'Tu despensa', 'Recetas: tus platos. Alimentos: más de 700 con buscador. Comedor: platos típicos ya calculados.'],
   ],
   alimentos: [
-    ['[data-like]', 'Lo que te gusta', 'Toca el corazón en lo que te gusta: saldrá primero cuando la app te proponga menús.'],
+    ['[data-cycle]', 'Lo que te gusta', 'Toca el corazón en lo que te gusta: saldrá primero cuando la app te proponga menús. Otro toque lo oculta.'],
   ],
   progreso: [
     ['#anotar', 'Anota tu peso', 'Mejor una vez por semana, el mismo día y en ayunas. Tu plan se recalcula solo.'],
@@ -33,7 +33,9 @@ export async function showTips(key) {
   if (s.tips?.[key] || active) return;
   const steps = TIPS[key].filter(([sel]) => document.querySelector(sel));
   if (!steps.length) return;
-  const done = async () => { close(); const t = (await getSettings()).tips || {}; await saveSettings({ tips: { ...t, [key]: true } }); };
+  // Se marca como visto al salir, no al pulsar "Entendido": si algo falla, no vuelve a aparecer cada vez
+  await saveSettings({ tips: { ...(s.tips || {}), [key]: true } });
+  const done = () => close();
   const hash = location.hash;
   let i = 0;
 
@@ -45,6 +47,9 @@ export async function showTips(key) {
   document.body.appendChild(root);
   active = root;
   const hole = root.querySelector('.tip-hole'), card = root.querySelector('.tip-card'), arrow = root.querySelector('.tip-arrow');
+
+  // Tocar fuera de la tarjeta también cierra
+  root.addEventListener('click', (e) => { if (!card.contains(e.target)) done(); });
 
   const show = () => {
     const [sel, title, text] = steps[i];
@@ -68,10 +73,19 @@ export async function showTips(key) {
       const left = Math.max(16, Math.min(innerWidth - cw - 16, r.left + r.width / 2 - cw / 2));
       card.style.width = `${cw}px`;
       card.style.left = `${left}px`;
-      const below = r.bottom + 16 + 150 < innerHeight;
-      card.style.top = below ? `${r.bottom + pad + 14}px` : '';
-      card.style.bottom = below ? '' : `${innerHeight - r.top + pad + 14}px`;
+      // La tarjeta siempre dentro de la pantalla: va donde haya más sitio (debajo o encima)
+      // y, si el elemento es muy alto, se pega al borde y se quita la flecha
+      const vh = window.visualViewport?.height || innerHeight;
+      const margin = 16, gap = pad + 14, h = card.offsetHeight;
+      const spaceBelow = vh - r.bottom - gap - margin, spaceAbove = r.top - gap - margin;
+      const below = spaceBelow >= h || spaceBelow >= spaceAbove;
+      let top = below ? r.bottom + gap : r.top - gap - h;
+      const clamped = Math.max(margin, Math.min(vh - h - margin, top));
+      const fits = clamped === top;
+      card.style.top = `${clamped}px`;
+      card.style.bottom = '';
       arrow.className = `tip-arrow ${below ? 'up' : 'down'}`;
+      arrow.hidden = !fits;
       arrow.style.left = `${Math.max(18, Math.min(cw - 18, r.left + r.width / 2 - left))}px`;
       card.style.opacity = '1';
     }, r0.top < 60 || r0.bottom > innerHeight - 160 ? 380 : 30);

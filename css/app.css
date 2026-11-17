@@ -157,6 +157,8 @@ h1, h2, h3, p { margin: 0; }
   display: flex; align-items: center; gap: 8px;
 }
 #nav[hidden] { display: none; }
+/* Que "hidden" gane siempre: si no, clases con display (.field, .row…) lo ignoraban y se veía el ritmo al elegir Mantener */
+[hidden] { display: none !important; }
 #nav .bar { height: 44px; border-radius: 999px; display: flex; align-items: center; gap: 2px; padding: 0 4px; }
 #nav a { color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: center; }
 #nav a.tab { width: 44px; height: 36px; }
@@ -178,6 +180,7 @@ h1, h2, h3, p { margin: 0; }
 .bowl-wrap { position: relative; width: 104px; height: 104px; flex: none; }
 .bowl-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 8px; }
 .macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fibra-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 10px; }
 
 /* Animaciones */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

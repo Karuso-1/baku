@@ -70,6 +70,9 @@ export function fmt(n, d = 0) {
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return (Number(n) < 0 ? '−' : '') + grouped + (dec ? ',' + dec : '');
 }
+// Fibra: mínimo orientativo de 14 g por cada 1.000 kcal, entre 25 y 35 g al día (no es un tope)
+export const fiberGoal = (kcal) => Math.max(25, Math.min(35, Math.round((kcal / 1000) * 14)));
+
 export const fmtDate = (iso, opts = { day: 'numeric', month: 'short' }) =>
   new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('es-ES', opts).replace('.', '');
 export const todayISO = () => {

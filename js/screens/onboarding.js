@@ -1,6 +1,6 @@
 // Bienvenida, test inicial (4 pasos) y plan.
 import { html, icon, bowl, gotas, ruler, $, $$, toast, logoMark } from '../ui.js';
-import { computePlan, activityFactor, LEVEL_NAMES, bmi, fmt, fmtDate, todayISO } from '../plan.js';
+import { computePlan, activityFactor, LEVEL_NAMES, bmi, fmt, fmtDate, todayISO, fiberGoal } from '../plan.js';
 import { saveProfile, getProfile, db, askPersistence } from '../db.js';
 import { ensureSeed } from '../store.js';
 import { DIETS, COMMON_AVOID, ALLERGENS, DEFAULT_DIET, allergenIcon, leafIcon } from '../diet.js';
@@ -251,7 +251,7 @@ export function plan(app) {
       <span class="num" style="font-size:56px;font-weight:300;letter-spacing:-0.04em;line-height:1">${fmt(p.kcal)}</span>
       <span class="muted" style="margin-top:-6px">kcal al día</span>
       <div class="num" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
-        <span class="pill">Proteína ${p.protein} g</span><span class="pill">Hidratos ${p.carbs} g</span><span class="pill">Grasas ${p.fat} g</span></div>
+        <span class="pill">Proteína ${p.protein} g</span><span class="pill">Hidratos ${p.carbs} g</span><span class="pill">Grasas ${p.fat} g</span><span class="pill">Fibra ${fiberGoal(p.kcal)} g</span></div>
     </section>
     <section class="glass card" style="gap:0;padding:12px 16px 6px">
       <h2 style="font-size:15px;font-weight:600;padding-bottom:8px">Cómo lo he calculado</h2>

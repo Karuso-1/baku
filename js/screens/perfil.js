@@ -1,6 +1,6 @@
 // Perfil y ajustes: datos, plan, fondo, copia de seguridad, pausa y meta alcanzada.
 import { html, icon, sheet, ruler, $, $$, toast, esc, pickImage, resizeImage, blobUrl, circleLink, APP_VERSION, isDiscreet, setDiscreet } from '../ui.js';
-import { fmt, fmtDate, todayISO, computePlan, activityFactor, LEVEL_NAMES, bmi } from '../plan.js';
+import { fmt, fmtDate, todayISO, fiberGoal, computePlan, activityFactor, LEVEL_NAMES, bmi } from '../plan.js';
 import { db, saveProfile, getProfile } from '../db.js';
 import { getSettings, saveSettings, weightsAll, photosByWeek, planWeek, addDays, parse, recipesAll } from '../store.js';
 import { avatar, totalWeeks } from './hoy.js';
@@ -51,7 +51,7 @@ export async function perfil(app, profile) {
         <span class="col"><span class="muted small">Objetivo</span><span class="num${profile.goal === 'mantener' ? '' : ' priv'}" style="font-size:18px;font-weight:600">${goalTxt}</span></span>
         <span class="col"><span class="muted small">Ritmo</span><span class="num priv" style="font-size:18px;font-weight:600">${profile.goal === 'mantener' ? '—' : fmt(profile.rate, 2).replace(/0$/, '') + ' <span class="unit">kg/sem</span>'}</span></span>
         <span class="col"><span class="muted small">Al día</span><span class="num" style="font-size:18px;font-weight:600">${fmt(p.kcal)} <span class="unit">kcal</span></span></span></div>
-      <div class="num row" style="gap:6px;font-size:12px"><span class="pill">P ${p.protein} g</span><span class="pill">H ${p.carbs} g</span><span class="pill">G ${p.fat} g</span></div>
+      <div class="num row" style="gap:6px;font-size:12px;flex-wrap:wrap"><span class="pill">P ${p.protein} g</span><span class="pill">H ${p.carbs} g</span><span class="pill">G ${p.fat} g</span><span class="pill">Fibra ${fiberGoal(p.kcal)} g</span></div>
       ${profile.tdeeAdjust ? `<div class="between"><span class="muted small num">Ajustada con tus datos: ${profile.tdeeAdjust > 0 ? '+' : '−'}${fmt(Math.abs(profile.tdeeAdjust))} kcal de gasto</span><button class="link" id="unadapt" style="font-size:12px">Quitar ajuste</button></div>` : ''}
       <div class="row" style="gap:8px"><button class="btn small ghost grow" id="goal">Cambiar objetivo</button><button class="btn small ghost" id="pause" style="width:auto;padding:0 16px">${icon('pause', 15, 2.2)}${s.pause ? 'En pausa' : 'Pausar'}</button></div>
     </section>

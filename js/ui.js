@@ -3,7 +3,7 @@ import { fmt } from './plan.js';
 import { colors } from './theme.js';
 
 // Versión visible (Perfil y correos de opinión). Súbela junto a VERSION de sw.js.
-export const APP_VERSION = '0.9.5';
+export const APP_VERSION = '0.9.6';
 
 export const html = (s, ...v) => s.reduce((a, str, i) => a + str + (i < v.length ? (v[i] ?? '') : ''), '');
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -99,7 +99,10 @@ const TUBE = {
   P: ['#FFFFFF', '#F2EADB', true],
   H: ['#E3CDA8', '#B8956A', false],
   G: ['#C9E3D4', '#9CC7AF', false],
+  F: ['#E6DDB8', '#BBAE7C', false],
 };
+// La fibra es un mínimo: pasarse no es malo, así que no se pinta en óxido
+export const fiberRow = (v, goal) => `<div class="fibra-row"><span class="muted small">Fibra</span>${tube('F', Math.min(v, goal), goal)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(goal)} g</span></div>`;
 export function tube(kind, value, goal) {
   const id = nextId('t');
   const pct = goal ? value / goal : 0;

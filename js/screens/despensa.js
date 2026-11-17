@@ -70,7 +70,7 @@ export function fromOFF(p) {
     name: (p.product_name_es || p.product_name || 'Producto sin nombre').trim(),
     brand: (p.brands || '').split(',')[0].trim(),
     cat: guessCat(p.categories_tags),
-    kcal: Math.round(kcal), p: +(n.proteins_100g || 0).toFixed(1), h: +(n.carbohydrates_100g || 0).toFixed(1), g: +(n.fat_100g || 0).toFixed(1),
+    kcal: Math.round(kcal), p: +(n.proteins_100g || 0).toFixed(1), h: +(n.carbohydrates_100g || 0).toFixed(1), g: +(n.fat_100g || 0).toFixed(1), fi: +(n.fiber_100g || 0).toFixed(1),
     portions: sq > 0 ? [{ name: '1 ración', g: Math.round(sq), default: true }] : [],
     barcode: p.code, quantity: p.quantity || '', source: 'off', tags: tagsFromOFF(p),
   };
@@ -203,7 +203,7 @@ export async function fichaAlimento(app, profile, id) {
       <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill">${f.cat}</span>${f.brand ? `<span class="pill">${esc(f.brand)}</span>` : ''}<span class="muted small">${f.source === 'off' ? 'Datos: Open Food Facts' : f.source === 'manual' ? 'Añadido a mano' : 'Valores medios · editables'}</span>${f.hidden ? '<span class="pill">Oculto</span>' : ''}</div></div>
     <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
       <span class="col"><span class="muted small">Por 100 g</span><span class="num" style="font-size:22px;font-weight:600">${fmt(f.kcal)} <span class="unit">kcal</span></span></span>
-      <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', f.p], ['Hidratos', f.h], ['Grasas', f.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v, v % 1 && v < 10 ? 1 : 0)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
+      <span class="num row" style="gap:10px;font-size:12px">${[['Proteína', f.p], ['Hidratos', f.h], ['Grasas', f.g], ['Fibra', f.fi || 0]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v, v % 1 && v < 10 ? 1 : 0)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
     ${dietCard(tagsOf([f]), m.diet)}
     <section class="glass card" style="gap:0;padding:12px 14px 6px">
       <div class="between" style="padding-bottom:2px"><h2 class="h2">Raciones habituales</h2><span class="muted small">Así no tienes que pesar</span></div>
@@ -261,12 +261,12 @@ export async function altaManual(app, profile, params, editId) {
   app.className = 'full';
   const existing = editId ? await foodGet(editId) : null;
   const code = params.get('codigo') || existing?.barcode || '';
-  const f = existing ? { ...existing } : { id: uid(), name: '', brand: '', cat: 'Otros', kcal: '', p: '', h: '', g: '', portions: [], liked: false, hidden: false, barcode: code, source: 'manual', tags: [] };
+  const f = existing ? { ...existing } : { id: uid(), name: '', brand: '', cat: 'Otros', kcal: '', p: '', h: '', g: '', fi: '', portions: [], liked: false, hidden: false, barcode: code, source: 'manual', tags: [] };
   const tags = new Set(f.tags || []);
   const ORIG = [['', 'Vegetal'], ['A', 'Huevo, lácteo o miel'], ['C', 'Carne'], ['P', 'Pescado o marisco']];
   let orig = ['C', 'P', 'A'].find((k) => tags.has(k)) || '';
   let portionName = f.portions?.[0]?.name || '', portionG = f.portions?.[0]?.g || '';
-  const field = (k, l, u) => `<label class="glass flat" style="border-radius:16px;padding:8px 14px;display:flex;flex-direction:column;gap:2px"><span class="muted small">${l}</span><span class="row" style="gap:4px"><input data-k="${k}" class="num" type="number" inputmode="decimal" value="${f[k]}" placeholder="0" style="width:100%;border:0;background:transparent;outline:none;font-size:20px;font-weight:600"><span class="unit">${u}</span></span></label>`;
+  const field = (k, l, u) => `<label class="glass flat" style="border-radius:16px;padding:8px 14px;display:flex;flex-direction:column;gap:2px"><span class="muted small">${l}</span><span class="row" style="gap:4px"><input data-k="${k}" class="num" type="number" inputmode="decimal" value="${f[k] ?? ''}" placeholder="0" style="width:100%;border:0;background:transparent;outline:none;font-size:20px;font-weight:600"><span class="unit">${u}</span></span></label>`;
   app.innerHTML = html`<div class="screen">
     <div class="row" style="gap:12px"><button class="icon-btn glass flat" id="x" aria-label="Cerrar">${icon('close', 16, 2.2)}</button><h1 style="font-size:20px;font-weight:600">${existing ? 'Editar alimento' : 'Nuevo alimento'}</h1></div>
     ${code && !existing ? `<div class="row" style="gap:10px;align-items:flex-start;border-radius:16px;background:rgba(242,234,219,0.1);padding:10px 12px"><span style="color:var(--crema);display:flex;padding-top:1px">${icon('info', 16, 2)}</span><span style="font-size:12px;line-height:1.4">El código ${esc(code)} no está en la base de datos. Copia la etiqueta una vez y se queda guardado.</span></div>` : ''}
@@ -274,7 +274,7 @@ export async function altaManual(app, profile, params, editId) {
     <div class="row" style="gap:8px"><input id="b" class="input glass flat" value="${esc(f.brand || '')}" placeholder="Marca (opcional)" style="height:44px;border-radius:999px;font-size:14px"></div>
     <div class="hscroll">${CATEGORIES.map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === f.cat}">${c}</button>`).join('')}</div>
     <div class="between" style="padding:4px 4px 0"><h2 class="h2">Valores por 100 g</h2><span class="muted small">Como en la etiqueta</span></div>
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${field('kcal', 'Energía', 'kcal')}${field('p', 'Proteína', 'g')}${field('h', 'Hidratos', 'g')}${field('g', 'Grasas', 'g')}</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${field('kcal', 'Energía', 'kcal')}${field('p', 'Proteína', 'g')}${field('h', 'Hidratos', 'g')}${field('g', 'Grasas', 'g')}${field('fi', 'Fibra', 'g')}</div>
     <span id="chk" class="small" style="padding-left:4px"></span>
     <div class="between" style="padding:4px 4px 0"><h2 class="h2">Origen</h2><span class="muted small">Para dietas vegetariana y vegana</span></div>
     <div class="row" style="gap:6px;flex-wrap:wrap">${ORIG.map(([k, l]) => `<button class="chip-s" data-orig="${k}" aria-pressed="${k === orig}">${l}</button>`).join('')}</div>
@@ -286,7 +286,7 @@ export async function altaManual(app, profile, params, editId) {
     <button class="btn" id="save">${existing ? 'Guardar cambios' : 'Guardar alimento'}</button>
   </div>`;
   const check = () => {
-    const k = +f.kcal, est = 4 * +f.p + 4 * +f.h + 9 * +f.g;
+    const k = +f.kcal, est = 4 * +f.p + 4 * +f.h + 9 * +f.g + 2 * (+f.fi || 0);
     const el = $('#chk', app);
     if (!k || !est) { el.textContent = ''; return; }
     const ok = Math.abs(k - est) / k < 0.15;
@@ -305,7 +305,7 @@ export async function altaManual(app, profile, params, editId) {
     if (!f.name.trim() || f.kcal === '') return toast('Falta el nombre o las kcal');
     ['C', 'P', 'A'].forEach((k) => tags.delete(k));
     if (orig) tags.add(orig);
-    const food = { ...f, name: f.name.trim(), kcal: +f.kcal, p: +f.p || 0, h: +f.h || 0, g: +f.g || 0, tags: [...tags] };
+    const food = { ...f, name: f.name.trim(), kcal: +f.kcal, p: +f.p || 0, h: +f.h || 0, g: +f.g || 0, fi: +f.fi || 0, tags: [...tags] };
     if (portionName.trim() && +portionG > 0) {
       const rest = (existing?.portions || []).slice(1);
       food.portions = [{ name: portionName.trim(), g: +portionG, default: true }, ...rest.map((p) => ({ ...p, default: false }))];
@@ -326,7 +326,7 @@ export function scanResult(p, onDone) {
       <span class="col" style="min-width:0"><span style="font-size:17px;font-weight:600;line-height:1.2">${esc(p.name)}</span><span class="muted small">${esc(p.brand || 'Sin marca')}${p.quantity ? ' · ' + esc(p.quantity) : ''}</span></span></div>
     <div class="between"><span class="muted small">Categoría</span><div class="hscroll" style="margin:0;padding:0;max-width:66%">${CATEGORIES.map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === cat}">${c}</button>`).join('')}</div></div>
     <div style="border-radius:18px;background:rgba(255,255,255,0.06);padding:10px 14px" class="between"><span class="col"><span class="muted small">Por 100 g</span><span class="num" style="font-size:20px;font-weight:600">${p.kcal} <span class="unit">kcal</span></span></span>
-      <span class="num row" style="gap:12px;font-size:12px">${[['Proteína', p.p], ['Hidratos', p.h], ['Grasas', p.g]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${String(v).replace('.', ',')} g</span><span class="muted small">${l}</span></span>`).join('')}</span></div>
+      <span class="num row" style="gap:10px;font-size:12px">${[['Proteína', p.p], ['Hidratos', p.h], ['Grasas', p.g], ['Fibra', p.fi || 0]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${String(v).replace('.', ',')} g</span><span class="muted small">${l}</span></span>`).join('')}</span></div>
     ${p.tags?.length ? `<div class="row" style="gap:8px;padding:0 4px;flex-wrap:wrap"><span class="muted small">Alérgenos</span><span class="row" style="gap:5px">${allergenRow(new Set(p.tags), 16)}</span></div>` : ''}
     ${portion ? `<div class="between" style="padding:0 4px"><span style="font-size:13px">Ración: ${portion.name} · <span class="num">${portion.g} g</span></span><span class="num" style="font-weight:600">${fmt((p.kcal * portion.g) / 100)} <span class="unit">kcal</span></span></div>` : ''}
     <button class="btn" id="ok">Guardar en la Despensa</button>
