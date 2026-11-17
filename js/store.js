@@ -3,6 +3,7 @@ import { LIB_RECIPES, SAMPLE_EXTRAS } from './recetario.js';
 import { db, getProfile, saveProfile } from './db.js';
 import { SEED, SEED_RECIPES, CATALOG_VERSION } from './seed.js';
 import { FIBRA } from './fibra.js';
+import { SAT, satEstimate } from './saturadas.js';
 import { COMEDOR } from './comedor.js';
 import { dietOf } from './diet.js';
 import { computePlan, todayISO } from './plan.js';
@@ -46,14 +47,15 @@ export async function ensureSeed() {
   for (const f of SEED) {
     const old = byName[f.name];
     if (!old) {
-      const food = { id: uid(), ...f, fi: FIBRA[f.name] || 0, liked: false, hidden: false, source: 'baku' };
+      const food = { id: uid(), ...f, fi: FIBRA[f.name] || 0, sat: SAT[f.name] ?? satEstimate(f), liked: false, hidden: false, source: 'baku' };
       await db.put('foods', food);
       byName[f.name] = food;
-    } else if (old.source === 'baku' && (!old.tags || old.fi === undefined || old.top !== f.top || (f.cat === 'Platos' && old.cat !== 'Platos'))) {
+    } else if (old.source === 'baku' && (!old.tags || old.fi === undefined || old.sat === undefined || old.top !== f.top || (f.cat === 'Platos' && old.cat !== 'Platos'))) {
       // Alimentos de la biblioteca anterior: se añaden etiquetas (y los platos pasan a su apartado) sin tocar valores ni me gusta
       old.tags = old.tags || f.tags; old.top = !!f.top;
       if (f.cat === 'Platos') old.cat = 'Platos';
       if (old.fi === undefined) old.fi = FIBRA[f.name] || 0;
+      if (old.sat === undefined) old.sat = SAT[f.name] ?? satEstimate(f);
       await db.put('foods', old);
     }
   }
@@ -131,16 +133,19 @@ export async function maps() {
 }
 
 // fi = fibra (g). Los alimentos antiguos sin el dato cuentan como 0.
-export const foodNutr = (f, g) => ({ kcal: (f.kcal * g) / 100, p: (f.p * g) / 100, h: (f.h * g) / 100, g: (f.g * g) / 100, fi: ((f.fi || 0) * g) / 100 });
-const add = (a, b) => ({ kcal: a.kcal + b.kcal, p: a.p + b.p, h: a.h + b.h, g: a.g + b.g, fi: (a.fi || 0) + (b.fi || 0) });
-export const ZERO = { kcal: 0, p: 0, h: 0, g: 0, fi: 0 };
+// s = grasa saturada (g). sx = grasa de alimentos sin el dato de saturadas (creados a mano antes de tenerlo).
+const hasSat = (f) => f.sat !== undefined && f.sat !== null && f.sat !== '';
+export const foodNutr = (f, g) => ({ kcal: (f.kcal * g) / 100, p: (f.p * g) / 100, h: (f.h * g) / 100, g: (f.g * g) / 100, fi: ((f.fi || 0) * g) / 100,
+  s: hasSat(f) ? (+f.sat * g) / 100 : 0, sx: hasSat(f) ? 0 : (f.g * g) / 100 });
+const add = (a, b) => ({ kcal: a.kcal + b.kcal, p: a.p + b.p, h: a.h + b.h, g: a.g + b.g, fi: (a.fi || 0) + (b.fi || 0), s: (a.s || 0) + (b.s || 0), sx: (a.sx || 0) + (b.sx || 0) });
+const scale = (t, k) => Object.fromEntries(Object.entries(t).map(([x, v]) => [x, (v || 0) * k]));
+export const ZERO = { kcal: 0, p: 0, h: 0, g: 0, fi: 0, s: 0, sx: 0 };
 
 // Valores de una ración de la receta
 export function recipeServing(r, foods) {
   let t = ZERO;
   for (const it of r.items) { const f = foods[it.foodId]; if (f) t = add(t, foodNutr(f, it.g)); }
-  const n = r.servings || 1;
-  return { kcal: t.kcal / n, p: t.p / n, h: t.h / n, g: t.g / n, fi: t.fi / n };
+  return scale(t, 1 / (r.servings || 1));
 }
 
 export function entryNutr(e, m) {
@@ -148,8 +153,7 @@ export function entryNutr(e, m) {
     const r = m.recipes[e.id];
     if (!r) return ZERO;
     const s = recipeServing(r, m.foods);
-    const k = e.servings || 1;
-    return { kcal: s.kcal * k, p: s.p * k, h: s.h * k, g: s.g * k, fi: s.fi * k };
+    return scale(s, e.servings || 1);
   }
   const f = m.foods[e.id];
   return f ? foodNutr(f, e.g) : ZERO;

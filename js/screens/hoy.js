@@ -177,7 +177,7 @@ export async function hoy(app, profile) {
   $$('[data-macro]', app).forEach((b) => b.addEventListener('click', async () => {
     const [k, goal] = MK[b.dataset.macro];
     const { desglose } = await import('../desglose.js');
-    desglose(k, day, m, goal, eaten[k]);
+    desglose(k, day, m, goal, eaten[k], plan.kcal);
   }));
 
   // Marcar comida hecha / pendiente

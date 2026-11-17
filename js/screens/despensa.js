@@ -71,6 +71,7 @@ export function fromOFF(p) {
     brand: (p.brands || '').split(',')[0].trim(),
     cat: guessCat(p.categories_tags),
     kcal: Math.round(kcal), p: +(n.proteins_100g || 0).toFixed(1), h: +(n.carbohydrates_100g || 0).toFixed(1), g: +(n.fat_100g || 0).toFixed(1), fi: +(n.fiber_100g || 0).toFixed(1),
+    ...(n['saturated-fat_100g'] != null ? { sat: +(+n['saturated-fat_100g']).toFixed(1) } : {}),
     portions: sq > 0 ? [{ name: '1 ración', g: Math.round(sq), default: true }] : [],
     barcode: p.code, quantity: p.quantity || '', source: 'off', tags: tagsFromOFF(p),
   };
@@ -204,6 +205,7 @@ export async function fichaAlimento(app, profile, id) {
     <section class="glass card" style="flex-direction:row;justify-content:space-between;align-items:center">
       <span class="col"><span class="muted small">Por 100 g</span><span class="num" style="font-size:22px;font-weight:600">${fmt(f.kcal)} <span class="unit">kcal</span></span></span>
       <span class="num row" style="gap:10px;font-size:12px">${[['Proteína', f.p], ['Hidratos', f.h], ['Grasas', f.g], ['Fibra', f.fi || 0]].map(([l, v]) => `<span class="col" style="align-items:center"><span style="font-weight:600">${fmt(v, v % 1 && v < 10 ? 1 : 0)} g</span><span class="muted small">${l}</span></span>`).join('')}</span></section>
+    ${f.sat != null && f.sat !== '' && f.g >= 1 ? `<span class="muted small num" style="padding:0 6px;margin-top:-6px">De las grasas, ${fmt(+f.sat, f.sat < 10 ? 1 : 0)} g son saturadas (por 100 g)</span>` : ''}
     ${dietCard(tagsOf([f]), m.diet)}
     <section class="glass card" style="gap:0;padding:12px 14px 6px">
       <div class="between" style="padding-bottom:2px"><h2 class="h2">Raciones habituales</h2><span class="muted small">Así no tienes que pesar</span></div>
@@ -261,7 +263,7 @@ export async function altaManual(app, profile, params, editId) {
   app.className = 'full';
   const existing = editId ? await foodGet(editId) : null;
   const code = params.get('codigo') || existing?.barcode || '';
-  const f = existing ? { ...existing } : { id: uid(), name: '', brand: '', cat: 'Otros', kcal: '', p: '', h: '', g: '', fi: '', portions: [], liked: false, hidden: false, barcode: code, source: 'manual', tags: [] };
+  const f = existing ? { ...existing } : { id: uid(), name: '', brand: '', cat: 'Otros', kcal: '', p: '', h: '', g: '', fi: '', sat: '', portions: [], liked: false, hidden: false, barcode: code, source: 'manual', tags: [] };
   const tags = new Set(f.tags || []);
   const ORIG = [['', 'Vegetal'], ['A', 'Huevo, lácteo o miel'], ['C', 'Carne'], ['P', 'Pescado o marisco']];
   let orig = ['C', 'P', 'A'].find((k) => tags.has(k)) || '';
@@ -274,7 +276,7 @@ export async function altaManual(app, profile, params, editId) {
     <div class="row" style="gap:8px"><input id="b" class="input glass flat" value="${esc(f.brand || '')}" placeholder="Marca (opcional)" style="height:44px;border-radius:999px;font-size:14px"></div>
     <div class="hscroll">${CATEGORIES.map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === f.cat}">${c}</button>`).join('')}</div>
     <div class="between" style="padding:4px 4px 0"><h2 class="h2">Valores por 100 g</h2><span class="muted small">Como en la etiqueta</span></div>
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${field('kcal', 'Energía', 'kcal')}${field('p', 'Proteína', 'g')}${field('h', 'Hidratos', 'g')}${field('g', 'Grasas', 'g')}${field('fi', 'Fibra', 'g')}</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${field('kcal', 'Energía', 'kcal')}${field('p', 'Proteína', 'g')}${field('h', 'Hidratos', 'g')}${field('g', 'Grasas', 'g')}${field('fi', 'Fibra', 'g')}${field('sat', 'De ellas, saturadas', 'g')}</div>
     <span id="chk" class="small" style="padding-left:4px"></span>
     <div class="between" style="padding:4px 4px 0"><h2 class="h2">Origen</h2><span class="muted small">Para dietas vegetariana y vegana</span></div>
     <div class="row" style="gap:6px;flex-wrap:wrap">${ORIG.map(([k, l]) => `<button class="chip-s" data-orig="${k}" aria-pressed="${k === orig}">${l}</button>`).join('')}</div>
@@ -305,7 +307,8 @@ export async function altaManual(app, profile, params, editId) {
     if (!f.name.trim() || f.kcal === '') return toast('Falta el nombre o las kcal');
     ['C', 'P', 'A'].forEach((k) => tags.delete(k));
     if (orig) tags.add(orig);
-    const food = { ...f, name: f.name.trim(), kcal: +f.kcal, p: +f.p || 0, h: +f.h || 0, g: +f.g || 0, fi: +f.fi || 0, tags: [...tags] };
+    const food = { ...f, name: f.name.trim(), kcal: +f.kcal, p: +f.p || 0, h: +f.h || 0, g: +f.g || 0, fi: +f.fi || 0, sat: f.sat === '' || f.sat == null ? undefined : +f.sat, tags: [...tags] };
+    if (food.sat === undefined) delete food.sat;
     if (portionName.trim() && +portionG > 0) {
       const rest = (existing?.portions || []).slice(1);
       food.portions = [{ name: portionName.trim(), g: +portionG, default: true }, ...rest.map((p) => ({ ...p, default: false }))];
