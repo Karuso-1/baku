@@ -168,8 +168,12 @@ export function emptyDay(date) { return { date, meals: { desayuno: [], comida: [
 export async function dayGet(date) { const d = await db.get('days', date); return d ? { ...emptyDay(date), ...d } : emptyDay(date); }
 export const dayPut = (d) => db.put('days', d);
 export function mealTotals(day, meal, m) { return day.meals[meal].reduce((t, e) => add(t, entryNutr(e, m)), ZERO); }
+// Suplementos que alimentan (batido de proteína, barrita…): cuentan en cuanto se marcan como tomados
+export function suppTotals(day, m) {
+  return Object.values(day.supps || {}).reduce((t, x) => (x.foodId && m.foods[x.foodId] ? add(t, foodNutr(m.foods[x.foodId], x.g)) : t), ZERO);
+}
 export function dayTotals(day, m, onlyDone = false) {
-  return MEALS.reduce((t, [k]) => (onlyDone && !day.done[k] ? t : add(t, mealTotals(day, k, m))), ZERO);
+  return add(MEALS.reduce((t, [k]) => (onlyDone && !day.done[k] ? t : add(t, mealTotals(day, k, m))), ZERO), suppTotals(day, m));
 }
 export const dayPlanned = (day) => MEALS.filter(([k]) => day.meals[k].length).length;
 

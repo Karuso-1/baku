@@ -58,7 +58,7 @@ export async function perfil(app, profile) {
 
     <div class="col" style="gap:6px"><h2 class="muted" style="font-size:13px;font-weight:600;padding-left:4px">Tus datos</h2>
     <section class="glass card" style="gap:0;padding:4px 14px">
-      ${row('ruler2', 'Altura', `${profile.height} cm`, 'data-e="height"')}${row('cake', 'Edad', `${profile.age} años`, 'data-e="age"')}${row('user', 'Sexo', profile.sex === 'mujer' ? 'Mujer' : 'Hombre', 'data-e="sex"')}${row('steps', 'Actividad', `${WORK[profile.work]} · ${DAYS[profile.days]}`, 'data-e="act"')}${row('menus', 'Alimentación', esc(dietSummary(dietOf(profile))), 'data-e="diet"')}
+      ${row('ruler2', 'Altura', `${profile.height} cm`, 'data-e="height"')}${row('cake', 'Edad', `${profile.age} años`, 'data-e="age"')}${row('user', 'Sexo', profile.sex === 'mujer' ? 'Mujer' : 'Hombre', 'data-e="sex"')}${row('steps', 'Actividad', `${WORK[profile.work]} · ${DAYS[profile.days]}`, 'data-e="act"')}${row('menus', 'Alimentación', esc(dietSummary(dietOf(profile))), 'data-e="diet"')}${row('pill', 'Suplementos', (s.supps || []).length ? `${s.supps.length}` : 'Ninguno', 'data-supps="1"')}
     </section></div>
 
     <div class="col" style="gap:6px"><h2 class="muted" style="font-size:13px;font-weight:600;padding-left:4px">App</h2>
@@ -77,6 +77,7 @@ export async function perfil(app, profile) {
   </div>`;
 
   const rerender = async () => perfil(app, await getProfile());
+  $('[data-supps]', app)?.addEventListener('click', async () => { const { suppSheet } = await import('../suplementos.js'); suppSheet(rerender); });
   $$('[data-go]', app).forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.go; }));
   $('[data-fb]', app).addEventListener('click', () => feedback());
   $('[data-disc]', app).addEventListener('click', () => {

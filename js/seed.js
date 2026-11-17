@@ -7,7 +7,7 @@
 //   Alérgenos (los 14 de la UE): gl gluten · cr crustáceos · hu huevo · pe pescado · ca cacahuete · so soja
 //   la leche · fc frutos de cáscara · ap apio · mo mostaza · se sésamo · su sulfitos · al altramuces · ml moluscos
 export const CATEGORIES = ['Proteínas', 'Legumbres', 'Hidratos', 'Verduras', 'Frutas', 'Lácteos', 'Grasas', 'Bebidas', 'Platos', 'Otros'];
-export const CATALOG_VERSION = 7;
+export const CATALOG_VERSION = 8;
 
 const f = (name, cat, kcal, p, h, g, portions = [], tags = '') => ({ name, cat, kcal, p, h, g, portions, tags: tags.split(' ').filter(Boolean) });
 const r = (name, g, def = false) => ({ name, g, default: def });
@@ -233,6 +233,7 @@ const MORE = [
   f('Lacitos (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 80, true)], 'gl'),
   f('Fideos finos (crudos)', H, 355, 12, 72, 1.5, [r('1 ración', 60, true)], 'gl'),
   f('Arroz redondo (crudo)', H, 355, 7, 79, 0.6, [r('1 ración', 80, true)]),
+  f('Arroz arborio para risotto (crudo)', H, 350, 7, 78, 0.6, [r('1 ración', 80, true)]),
   f('Pasta integral (cruda)', H, 345, 13, 64, 2.5, [r('1 ración', 80, true)], 'gl'),
   f('Pasta sin gluten (cruda)', H, 360, 7, 79, 1.5, [r('1 ración', 80, true)]),
   f('Pasta de lentejas (cruda)', H, 340, 25, 50, 2, [r('1 ración', 80, true)]),
@@ -814,6 +815,11 @@ const MORE = [
   f('Zarzuela de pescado', T, 110, 13, 4, 4.5, [r('1 ración', 300, true)], 'P pe cr ml'),
   f('Arroz al horno', T, 170, 7, 22, 6, [r('1 plato', 350, true)], 'C'),
   f('Arroz con verduras', T, 130, 3, 23, 3, [r('1 plato', 300, true)]),
+  f('Risotto de setas', T, 140, 3.5, 20, 5, [r('1 plato', 300, true)], 'A la su'),
+  f('Risotto de parmesano', T, 160, 4.5, 21, 6.5, [r('1 plato', 300, true)], 'A la su'),
+  f('Risotto de calabaza', T, 125, 3, 19, 4, [r('1 plato', 300, true)], 'A la'),
+  f('Risotto de marisco', T, 135, 7, 19, 3.5, [r('1 plato', 300, true)], 'cr ml su'),
+  f('Risotto de espárragos', T, 135, 3.5, 19, 5, [r('1 plato', 300, true)], 'A la su'),
   f('Pollo asado con patatas', T, 170, 13, 10, 9, [r('1 plato', 350, true)], 'C'),
   f('Pimientos rellenos', T, 140, 8, 10, 7.5, [r('2 pimientos', 250, true)], 'C'),
   f('Berenjena rellena', T, 130, 7, 7, 8.5, [r('1 mitad', 250, true)], 'C A la'),

@@ -3,6 +3,7 @@ import { html, icon, bowl, tube, $, $$, blobUrl, esc, toast, discreetBtn } from 
 import { fmt, todayISO, fiberGoal } from '../plan.js';
 import { closeBlock, bindClose } from '../cierre.js';
 import { suggest } from '../sugerencias.js';
+import { suppCard, bindSuppCard } from '../suplementos.js';
 import { MEALS, maps, dayGet, dayPut, dayTotals, mealTotals, entryName, weightsAll, getSettings, streakAndAverage, photosByWeek, planWeek, parse, addDays } from '../store.js';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -145,6 +146,8 @@ export async function hoy(app, profile) {
         <span class="muted small">${weekPhotos >= 3 ? `Semana ${week}` : daysToSunday > 1 ? `Faltan ${daysToSunday} días` : daysToSunday === 1 ? 'Mañana toca' : 'Hoy toca'}</span></span></a>
     </div>
 
+    ${suppCard(settings, day, m)}
+
     ${anyMeal ? html`<section class="glass card" style="gap:0;padding:10px 14px 6px">
       <div class="between" style="padding-bottom:4px"><h2 class="h2">Comidas de hoy</h2><a class="link" href="#/menus?fecha=${date}" style="font-size:12px">Ver el día</a></div>
       ${MEALS.map(mealRow).join('')}</section>
@@ -167,6 +170,7 @@ export async function hoy(app, profile) {
   </div>`;
 
   bindClose(app, date, profile, () => hoy(app, profile));
+  bindSuppCard(app, day, settings, m, () => hoy(app, profile));
 
   // Marcar comida hecha / pendiente
   $$('.meal-toggle', app).forEach((b) => b.addEventListener('click', async () => {
