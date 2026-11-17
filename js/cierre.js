@@ -1,7 +1,7 @@
 // Cerrar el día: cuando ya no vas a apuntar nada más (después de cenar).
 // Guarda day.closedAt y enseña una tarjeta con el resumen y un mensaje de cómo ha ido.
 // El día se puede reabrir. Si se sigue apuntando después de cerrar, el resumen se recalcula.
-import { html, icon, bowl, tube, fiberRow, $, $$, sheet, toast } from './ui.js';
+import { html, icon, bowl, tube, $, $$, sheet, toast } from './ui.js';
 import { fmt, fiberGoal } from './plan.js';
 import { MEALS, maps, dayGet, dayPut, dayTotals, getSettings, streakAndAverage } from './store.js';
 
@@ -146,10 +146,9 @@ export async function summary(date, profile, rerender) {
           <span class="cierre-status num" style="color:${toneColor};border-color:${toneColor}">${status}</span></div>
       </div>
       <div class="macros" style="margin-top:12px">
-        ${[['Proteína', 'P', t.p, plan.protein], ['Hidratos', 'H', t.h, plan.carbs], ['Grasas', 'G', t.g, plan.fat]].map(([l, k, v, g]) =>
-          html`<div class="col" style="gap:5px"><span class="muted small">${l}</span>${tube(k, v, g)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(g)} g</span></div>`).join('')}
+        ${[['Proteína', 'P', t.p, plan.protein], ['Hidratos', 'H', t.h, plan.carbs], ['Grasas', 'G', t.g, plan.fat], ['Fibra', 'F', t.fi, fiberGoal(plan.kcal)]].map(([l, k, v, g]) =>
+          html`<div class="col" style="gap:5px"><span class="muted small">${l}</span>${tube(k, k === 'F' ? Math.min(v, g) : v, g)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(g)} g</span></div>`).join('')}
       </div>
-      ${fiberRow(t.fi, fiberGoal(plan.kcal))}
       <div class="num" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px">
         <span class="glass flat stat"><span class="muted small">Comidas hechas</span><span style="font-size:16px;font-weight:600">${done} de ${planned}</span></span>
         <span class="glass flat stat"><span class="muted small">Racha</span><span class="row" style="gap:4px;font-size:16px;font-weight:600">${paused ? 'En pausa' : `${icon('flame', 14, 2.2)}${streak} ${streak === 1 ? 'día' : 'días'}`}</span></span>

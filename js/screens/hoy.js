@@ -1,5 +1,5 @@
 // Pantalla Hoy.
-import { html, icon, bowl, tube, fiberRow, $, $$, blobUrl, esc, toast, discreetBtn } from '../ui.js';
+import { html, icon, bowl, tube, $, $$, blobUrl, esc, toast, discreetBtn } from '../ui.js';
 import { fmt, todayISO, fiberGoal } from '../plan.js';
 import { closeBlock, bindClose } from '../cierre.js';
 import { suggest } from '../sugerencias.js';
@@ -126,10 +126,9 @@ export async function hoy(app, profile) {
         </div>
       </div>
       <div class="macros">
-        ${[['Proteína', 'P', eaten.p, plan.protein], ['Hidratos', 'H', eaten.h, plan.carbs], ['Grasas', 'G', eaten.g, plan.fat]].map(([l, k, v, g]) =>
-          html`<div class="col" style="gap:5px"><span class="muted small">${l}</span>${tube(k, paused ? Math.min(v, g) : v, g)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(g)} g</span></div>`).join('')}
+        ${[['Proteína', 'P', eaten.p, plan.protein], ['Hidratos', 'H', eaten.h, plan.carbs], ['Grasas', 'G', eaten.g, plan.fat], ['Fibra', 'F', eaten.fi, fiberGoal(plan.kcal)]].map(([l, k, v, g]) =>
+          html`<div class="col" style="gap:5px"><span class="muted small">${l}</span>${tube(k, paused || k === 'F' ? Math.min(v, g) : v, g)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(g)} g</span></div>`).join('')}
       </div>
-      ${fiberRow(eaten.fi, fiberGoal(plan.kcal))}
     </section>
 
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">

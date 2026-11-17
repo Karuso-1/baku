@@ -179,8 +179,7 @@ h1, h2, h3, p { margin: 0; }
 .streak { height: 20px; padding: 0 8px 0 6px; border-radius: 999px; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--arena-claro); }
 .bowl-wrap { position: relative; width: 104px; height: 104px; flex: none; }
 .bowl-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 8px; }
-.macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.fibra-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 10px; }
+.macros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
 
 /* Animaciones */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
