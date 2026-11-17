@@ -1,6 +1,6 @@
 // Service worker: guarda la app en el móvil para que abra sin conexión.
 // Cambia VERSION en cada publicación para que el móvil descargue lo nuevo.
-const VERSION = 'baku-v0.9.9';
+const VERSION = 'baku-v0.9.10';
 const FILES = [
   './',
   'index.html',
@@ -17,6 +17,7 @@ const FILES = [
   'js/fibra.js',
   'js/sugerencias.js',
   'js/suplementos.js',
+  'js/desglose.js',
   'js/theme.js',
   'js/fill.js',
   'js/diet.js',

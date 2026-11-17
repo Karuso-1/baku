@@ -180,6 +180,8 @@ h1, h2, h3, p { margin: 0; }
 .bowl-wrap { position: relative; width: 104px; height: 104px; flex: none; }
 .bowl-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 8px; }
 .macros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
+.macro-btn { display: flex; background: none; border: 0; padding: 4px 0; margin: -4px 0; color: #fff; text-align: left; font: inherit; cursor: pointer; border-radius: 8px; -webkit-tap-highlight-color: transparent; }
+.macro-btn:active { opacity: 0.6; }
 
 /* Animaciones */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

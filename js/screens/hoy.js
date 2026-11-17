@@ -128,7 +128,7 @@ export async function hoy(app, profile) {
       </div>
       <div class="macros">
         ${[['Proteína', 'P', eaten.p, plan.protein], ['Hidratos', 'H', eaten.h, plan.carbs], ['Grasas', 'G', eaten.g, plan.fat], ['Fibra', 'F', eaten.fi, fiberGoal(plan.kcal)]].map(([l, k, v, g]) =>
-          html`<div class="col" style="gap:5px"><span class="muted small">${l}</span>${tube(k, paused || k === 'F' ? Math.min(v, g) : v, g)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(g)} g</span></div>`).join('')}
+          html`<button class="col macro-btn" data-macro="${k}" aria-label="${l}: ${fmt(v)} de ${fmt(g)} g. Ver de dónde viene" style="gap:5px"><span class="between"><span class="muted small">${l}</span><span style="color:var(--apagado);display:flex">${icon('chev', 12, 2.2)}</span></span>${tube(k, paused || k === 'F' ? Math.min(v, g) : v, g)}<span class="num" style="font-size:12px;font-weight:500">${fmt(v)} / ${fmt(g)} g</span></button>`).join('')}
       </div>
     </section>
 
@@ -171,6 +171,14 @@ export async function hoy(app, profile) {
 
   bindClose(app, date, profile, () => hoy(app, profile));
   bindSuppCard(app, day, settings, m, () => hoy(app, profile));
+
+  // Tocar una barra de macros: de qué alimentos viene
+  const MK = { P: ['p', plan.protein], H: ['h', plan.carbs], G: ['g', plan.fat], F: ['fi', fiberGoal(plan.kcal)] };
+  $$('[data-macro]', app).forEach((b) => b.addEventListener('click', async () => {
+    const [k, goal] = MK[b.dataset.macro];
+    const { desglose } = await import('../desglose.js');
+    desglose(k, day, m, goal, eaten[k]);
+  }));
 
   // Marcar comida hecha / pendiente
   $$('.meal-toggle', app).forEach((b) => b.addEventListener('click', async () => {
