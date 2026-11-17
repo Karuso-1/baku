@@ -1,5 +1,6 @@
 // Baku · arranque y navegación por pantallas (#/ruta)
-import { getProfile } from './db.js';
+import { getProfile, saveProfile } from './db.js';
+import { computePlan, PLAN_RULES } from './plan.js';
 import { renderNav, toast } from './ui.js';
 import { getSettings, ensureSeed } from './store.js';
 import { applyTheme } from './theme.js';
@@ -68,6 +69,13 @@ async function route() {
   const [path, query = ''] = raw.split('?');
   const params = new URLSearchParams(query);
   const profile = await getProfile();
+  // Si ha cambiado la forma de calcular el plan, se recalcula una vez con los mismos datos
+  if (profile?.plan && profile.plan.rules !== PLAN_RULES) {
+    const before = profile.plan.protein;
+    profile.plan = { ...computePlan(profile), weeksTotal: profile.plan.weeksTotal || profile.plan.weeks };
+    await saveProfile(profile);
+    if (profile.plan.protein !== before) setTimeout(() => toast(`Proteína: ${before} → ${profile.plan.protein} g al día, ahora con tu peso objetivo`), 900);
+  }
   const ticket = ++rendering;
   app.removeAttribute('style');
   document.body.style.overflow = '';

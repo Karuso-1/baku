@@ -25,6 +25,9 @@ export function bmi(weight, heightCm) {
   return weight / (m * m);
 }
 
+export const PLAN_RULES = 2; // súbelo si cambia el cálculo para recalcular los planes guardados
+export const proteinRefKg = (p) => (p.goal === 'perder' && p.target ? Math.min(p.weight, p.target) : p.weight);
+
 export function computePlan(p) {
   const base = bmr(p);
   const factor = activityFactor(p.work, p.days);
@@ -37,7 +40,10 @@ export function computePlan(p) {
   const floored = kcal < MIN_KCAL;
   kcal = Math.round(Math.max(MIN_KCAL, kcal) / 10) * 10;
 
-  const protein = Math.round(1.8 * p.weight);
+  // Proteína: 1,8 g por kg. Si quieres perder peso, del peso objetivo (con mucho peso que perder,
+  // el peso actual da cifras difíciles de alcanzar y no hacen falta)
+  const proteinKg = proteinRefKg(p);
+  const protein = Math.round(1.8 * proteinKg);
   const fat = Math.round((kcal * 0.27) / 9);
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
 
@@ -56,6 +62,8 @@ export function computePlan(p) {
     kcal,
     floored,
     protein,
+    proteinKg,
+    rules: PLAN_RULES,
     fat,
     carbs,
     weeks,

@@ -241,7 +241,7 @@ export function plan(app) {
   app.className = 'full';
   const fdec = (f) => fmt(f, f === 1.2 || f === 1.9 ? 1 : f === 1.55 ? 2 : 3);
   const daysTxt = ['sin entreno', '1–2 días de entreno', '3–4 días de entreno', '5 o más días de entreno'][d.days];
-  const line = (a, b, v, strong) => html`<div class="between" style="padding:9px 0;border-top:1px solid var(--linea)"><span class="col"><span style="font-size:14px;${strong ? 'font-weight:600' : ''}">${a}</span>${b ? `<span class="muted small">${b}</span>` : ''}</span><span class="num" style="font-size:${strong ? 17 : 15}px;font-weight:600">${v}</span></div>`;
+  const line = (a, b, v, strong) => html`<div class="between" style="padding:9px 0;border-top:1px solid var(--linea)"><span class="col"><span style="font-size:14px;${strong ? 'font-weight:600' : ''}">${a}</span>${b ? `<span class="muted small">${b}</span>` : ''}</span><span class="num" style="font-size:${strong ? 17 : 15}px;font-weight:600;white-space:nowrap">${v}</span></div>`;
   const adjLabel = d.goal === 'perder' ? 'Déficit' : d.goal === 'ganar' ? 'Superávit' : 'Sin ajuste';
   const adjSub = d.goal === 'mantener' ? 'Para mantener tu peso' : `Para ${d.goal} ${fmt(d.rate, 2).replace(/0$/, '')} kg por semana`;
   app.innerHTML = html`<div class="screen">
@@ -259,6 +259,8 @@ export function plan(app) {
       ${line('Con tu actividad', `${WORK_SHORT[d.work]} + ${daysTxt}, × ${fdec(p.factor)}${d.tdeeAdjust ? ', ajustado con tus datos' : ''}`, fmt(p.tdee))}
       ${line(adjLabel, adjSub, d.goal === 'mantener' ? '0' : (d.goal === 'perder' ? '−' : '+') + fmt(p.adjust))}
       ${line('Tu objetivo diario', '', fmt(p.kcal) + ' <span class="unit">kcal</span>', true)}
+      ${line('Proteína', `1,8 g por kg de tu peso ${p.proteinKg !== d.weight ? `objetivo (${fmt(p.proteinKg, p.proteinKg % 1 ? 1 : 0)} kg)` : `(${fmt(d.weight, d.weight % 1 ? 1 : 0)} kg)`}`, p.protein + ' <span class="unit">g</span>')}
+      ${line('Grasas e hidratos', 'Grasas: 27 % de las kcal · hidratos: el resto', `${p.fat} · ${p.carbs} <span class="unit">g</span>`)}
     </section>
     <p class="muted" style="font-size:13px;line-height:1.45;padding:0 4px">${d.goal === 'mantener' ? '' : `Meta: <b style="color:#fff">${fmt(d.target, d.target % 1 ? 1 : 0)} kg</b> hacia el ${fmtDate(p.endDate, { day: 'numeric', month: 'long' })}. `}El plan se recalcula cada vez que registres tu peso y nunca bajará de 1.500 kcal.${p.floored ? ' Con tus datos, el cálculo daba menos, así que lo he subido al mínimo.' : ''}</p>
     <div class="spacer"></div>

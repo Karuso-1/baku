@@ -2,6 +2,7 @@
 import { html, icon, bowl, tube, fiberRow, $, $$, blobUrl, esc, toast, discreetBtn } from '../ui.js';
 import { fmt, todayISO, fiberGoal } from '../plan.js';
 import { closeBlock, bindClose } from '../cierre.js';
+import { suggest } from '../sugerencias.js';
 import { MEALS, maps, dayGet, dayPut, dayTotals, mealTotals, entryName, weightsAll, getSettings, streakAndAverage, photosByWeek, planWeek, parse, addDays } from '../store.js';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -48,6 +49,23 @@ export async function hoy(app, profile) {
   const weekPhotos = Object.keys(photos[week] || {}).length;
   const daysToSunday = (7 - now.getDay()) % 7;
   const anyMeal = MEALS.some(([k]) => day.meals[k].length);
+
+  // Ideas para llegar a la proteína y la fibra (desde las 16:00, con lo planificado del día)
+  const planned = dayTotals(day, m);
+  const kcalLeft = plan.kcal - planned.kcal;
+  const needs = paused || day.closedAt || !anyMeal || now.getHours() < 16 ? [] : [
+    ['p', 'proteína', plan.protein - planned.p, 15],
+    ['fi', 'fibra', fiberGoal(plan.kcal) - planned.fi, 6],
+  ].filter(([, , need, min]) => need >= min).map(([k, l, need]) => [k, l, need, suggest(k, need, kcalLeft, m)]).filter(([, , , list]) => list.length);
+  const target = mealNow() === 'cena' || now.getHours() >= 19 ? 'cena' : 'merienda';
+  const ideas = needs.length ? html`<section class="glass card" style="gap:0;padding:12px 14px 6px">
+    <div class="col" style="gap:2px;padding-bottom:4px"><h2 class="h2">Te faltan ${needs.map(([, l, need]) => `${fmt(need)} g de ${l}`).join(' y ')}</h2>
+      <span class="muted small">${kcalLeft > 0 ? `Ideas de tu despensa que caben en las ${fmt(kcalLeft)} kcal que te quedan` : 'Ideas ligeras de tu despensa'}</span></div>
+    ${needs.map(([k, l, , list]) => `${needs.length > 1 ? `<span class="muted small" style="padding:8px 0 2px;display:block;text-transform:capitalize">${l}</span>` : ''}${list.map((x) => html`<div class="list-row">
+      <a href="#/alimento/${x.food.id}" class="col grow" style="min-width:0;text-decoration:none;color:#fff"><span style="font-size:14px;font-weight:500">${x.food.liked ? `<span style="color:var(--crema)">${icon('heart', 12, 2.4)}</span> ` : ''}${esc(x.food.name)}</span>
+        <span class="muted small num">${esc(x.portion)} · +${fmt(x.v, x.v < 10 ? 1 : 0)} g de ${l} · ${fmt(x.kcal)} kcal</span></a>
+      <button class="icon-btn glass flat" data-idea="${x.food.id}" data-g="${x.g}" aria-label="Añadir ${esc(x.food.name)} a la ${target}">${icon('plus', 16, 2.2)}</button></div>`).join('')}`).join('')}
+  </section>` : '';
 
   const streakPill = paused ? '' : html`<span class="streak glass flat num" aria-label="${dayN === 1 ? 'Día 1' : `Racha de ${streak} días`}">${dayN === 1 ? 'Día 1' : `${icon('flame', 12, 2.2)}${streak}`}</span>`;
 
@@ -131,6 +149,7 @@ export async function hoy(app, profile) {
     ${anyMeal ? html`<section class="glass card" style="gap:0;padding:10px 14px 6px">
       <div class="between" style="padding-bottom:4px"><h2 class="h2">Comidas de hoy</h2><a class="link" href="#/menus?fecha=${date}" style="font-size:12px">Ver el día</a></div>
       ${MEALS.map(mealRow).join('')}</section>
+    ${ideas}
     ${closeBlock(day)}`
     : html`<section class="glass card" style="align-items:center;text-align:center;padding:18px 16px">
       <h2 style="font-size:17px;font-weight:600">Tu cuenco está vacío</h2>
@@ -164,6 +183,12 @@ export async function hoy(app, profile) {
     await dayPut(day);
     hoy(app, profile);
     toast(`${MEALS.find(([x]) => x === k)[1]} como ayer. Márcala cuando la comas.`);
+  }));
+  $$('[data-idea]', app).forEach((b) => b.addEventListener('click', async () => {
+    day.meals[target].push({ kind: 'food', id: b.dataset.idea, g: +b.dataset.g });
+    await dayPut(day);
+    hoy(app, profile);
+    toast(day.done[target] ? `Añadido a la ${target}.` : `Añadido a la ${target}. Márcala cuando la comas.`);
   }));
   $('#ayerTodo', app)?.addEventListener('click', async () => {
     day.meals = JSON.parse(JSON.stringify(prev.meals)); day.done = {};
