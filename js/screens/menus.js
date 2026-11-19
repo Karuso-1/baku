@@ -1,7 +1,7 @@
 // Menús: semana, día, rellenar automático, propuesta y añadir platos.
 import { html, icon, tube, sheet, $, $$, toast, esc, circleBtn } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
-import { MEALS, MEAL_NAME, maps, dayGet, dayPut, dayTotals, mealTotals, entryNutr, entryName, entryAmount, weekStartOf, weekDays, addDays, parse, getSettings, recipeServing, foodNutr, emptyDay, searchSort, recentEntries } from '../store.js';
+import { MEALS, MEAL_NAME, maps, dayGet, dayPut, dayTotals, mealTotals, entryNutr, entryName, entryAmount, weekStartOf, weekDays, addDays, parse, getSettings, recipeServing, foodNutr, emptyDay, searchSort, recentEntries, foodPut, uid } from '../store.js';
 import { conflicts, recipeTags, tagsOf, allergenRow } from '../diet.js';
 import { COURSES } from '../comedor.js';
 import { db } from '../db.js';
@@ -303,13 +303,43 @@ export async function anadir(app, profile, params) {
         + (q ? also('Alimentos', foods.slice(0, 12).map(foodRow).join('')) : '')
         + `<a class="btn small ghost" href="#/receta/nueva" style="margin-top:8px">${icon('plus', 16, 2.2)}Nueva receta</a>`
       : (foods.length ? foods.slice(0, 80).map(foodRow).join('')
-        : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">No está en tu despensa. Búscalo en Open Food Facts desde la Despensa o escanéalo.</p>`)
+        : `<p class="muted" style="padding:14px 0;text-align:center;font-size:13px">${q.length >= 3 ? 'No está en tu despensa. Mira abajo lo que hay en Open Food Facts.' : 'No está en tu despensa.'}</p>`)
         + (q ? also('Recetas', recipes.slice(0, 5).map(recipeRow).join('')) : '')
         + `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px"><a class="btn small ghost" href="#/escaner">${icon('scan', 16)}Escanear</a><a class="btn small ghost" href="#/despensa/alimentos">${icon('search', 16)}Buscar más</a></div>`);
     $$('[data-rc]', app).forEach((b) => b.addEventListener('click', () => { const e = recents[+b.dataset.rc]; commit(e.kind === 'recipe' ? { kind: 'recipe', id: e.id, servings: e.servings || 1 } : { kind: 'food', id: e.id, g: e.g, ...(e.alt ? { alt: e.alt } : {}) }); }));
     $$('[data-r]', app).forEach((b) => b.addEventListener('click', () => addRecipe(m.recipes[b.dataset.r])));
     $$('[data-f]', app).forEach((b) => b.addEventListener('click', () => addFood(m.foods[b.dataset.f])));
     $('#cats', app).hidden = tab !== 'alimentos';
+    searchOFF();
+  };
+
+  // Productos de marca: si escribes 3 letras o más, se busca también en Open Food Facts
+  let offTimer, offSeq = 0;
+  const searchOFF = () => {
+    const box = $('#off', app);
+    clearTimeout(offTimer);
+    const seq = ++offSeq;
+    if (tab === 'comedor' || q.length < 3) { box.innerHTML = ''; return; }
+    box.innerHTML = `<p class="muted small" style="text-align:center;padding:8px">Buscando en Open Food Facts…</p>`;
+    offTimer = setTimeout(async () => {
+      try {
+        const { offSearch } = await import('./despensa.js');
+        const res = await offSearch(q);
+        if (seq !== offSeq || !$('#off', app)) return;
+        box.innerHTML = res.length ? html`<section class="glass card" style="gap:0;padding:10px 14px 6px"><div class="between" style="padding-bottom:2px"><h2 class="h2">En Open Food Facts</h2><span class="muted small">Se guarda en tu despensa</span></div>
+          ${res.map((p, i) => `<button class="list-row" data-off="${i}" style="background:none;border-left:0;border-right:0;border-bottom:0;color:#fff;text-align:left;width:100%;${i ? '' : 'border-top:0'}"><span class="col grow" style="min-width:0"><span class="ellipsis" style="font-size:14px;font-weight:500">${esc(p.name)}</span><span class="muted small num ellipsis">${esc(p.brand || 'Sin marca')} · ${fmt(p.kcal)} kcal / 100 g${warn(tagsOf([p]))}</span></span>${icon('plus', 16, 2.2)}</button>`).join('')}</section>`
+          : `<p class="muted small" style="text-align:center;padding:8px">Nada en Open Food Facts con ese nombre.</p>`;
+        $$('[data-off]', box).forEach((b) => b.addEventListener('click', async () => {
+          const p = res[+b.dataset.off];
+          // Si ya lo tenías (mismo código de barras), se usa ese; si no, se guarda en la despensa
+          const f = (p.barcode && Object.values(m.foods).find((x) => x.barcode === p.barcode)) || { id: uid(), ...p, liked: false, hidden: false };
+          if (!m.foods[f.id]) { await foodPut(f); m.foods[f.id] = f; }
+          addFood(f);
+        }));
+      } catch (_) {
+        if (seq === offSeq && $('#off', app)) box.innerHTML = `<p class="muted small" style="text-align:center;padding:8px">Sin conexión con Open Food Facts.</p>`;
+      }
+    }, 500);
   };
 
   const commit = async (entry) => {
@@ -330,6 +360,7 @@ export async function anadir(app, profile, params) {
     <div class="seg glass flat" role="radiogroup" aria-label="Tipo" style="height:44px;grid-template-columns:repeat(3,minmax(0,1fr))"><button role="radio" data-tab="recetas" aria-checked="${tab === 'recetas'}">Recetas</button><button role="radio" data-tab="alimentos" aria-checked="${tab === 'alimentos'}">Alimentos</button><button role="radio" data-tab="comedor" aria-checked="${tab === 'comedor'}">Comedor</button></div>
     <div class="hscroll" id="cats">${['Todas', ...CATEGORIES].map((c) => `<button class="chip-s" data-cat="${c}" aria-pressed="${c === cat}">${c}</button>`).join('')}</div>
     <section class="glass card" style="gap:0;padding:6px 14px 12px" id="list"></section>
+    <div id="off"></div>
   </div>`;
   $('#back', app).addEventListener('click', () => history.back());
   $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });

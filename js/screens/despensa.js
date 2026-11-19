@@ -7,6 +7,7 @@ import { ALLERGENS, allergenIcon, allergenRow, conflicts, dietCard, tagsOf, tags
 import { COURSES, SIZES } from '../comedor.js';
 import { CATEGORIES, SEED } from '../seed.js';
 import { foodAmountSheet } from './menus.js';
+import { mealNow } from './hoy.js';
 import { db } from '../db.js';
 import { recipeImg } from '../recetario.js';
 
@@ -77,7 +78,7 @@ export function fromOFF(p) {
     barcode: p.code, quantity: p.quantity || '', source: 'off', tags: tagsFromOFF(p),
   };
 }
-async function offSearch(q) {
+export async function offSearch(q) {
   // Pasa por nuestro Worker porque Open Food Facts no permite buscar desde el navegador
   const res = await fetch(`api/buscar?q=${encodeURIComponent(q)}`);
   const data = await res.json();
@@ -250,7 +251,7 @@ export async function fichaAlimento(app, profile, id) {
   $('#add', app).addEventListener('click', () => {
     // Por defecto, el día y la comida de donde vienes (Añadir plato de ayer → ayer); si no, hoy y la comida de ahora
     const ctx = getAddCtx();
-    const st = { date: ctx?.date || todayISO(), meal: ctx?.meal || ['desayuno', 'comida', 'merienda', 'cena'][Math.min(3, Math.floor(Math.max(0, new Date().getHours() - 7) / 4))] };
+    const st = { date: ctx?.date || todayISO(), meal: ctx?.meal || mealNow() };
     foodAmountSheet(f, addCta(st), async (g, alt) => {
       const day = await dayGet(st.date);
       day.meals[st.meal].push({ kind: 'food', id: f.id, g, ...(alt ? { alt } : {}) });

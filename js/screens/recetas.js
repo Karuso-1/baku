@@ -1,6 +1,7 @@
 // Recetas: crear, editar y ver.
 import { html, icon, sheet, $, $$, toast, esc, pickImage, resizeImage, blobUrl } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
+import { mealNow } from './hoy.js';
 import { getAddCtx, dayName, dayMealPicker, bindDayMealPicker, addCta } from '../dia.js';
 import { MEALS, MEAL_NAME, maps, recipeGet, recipePut, recipeDel, recipeServing, foodNutr, uid, dayGet, dayPut, addDays, parse, searchSort } from '../store.js';
 import { dietCard, recipeTags } from '../diet.js';
@@ -154,7 +155,7 @@ export async function recetaDetalle(app, profile, id) {
 function addToDay(r) {
   // Desde hace 3 días: para apuntar lo que se te olvidó. Por defecto, el día de donde vienes.
   const ctx = getAddCtx();
-  const st = { date: ctx?.date || todayISO(), meal: ctx?.meal || r.meals?.[0] || 'comida' };
+  const st = { date: ctx?.date || todayISO(), meal: ctx?.meal || (!r.meals?.length || r.meals.includes(mealNow()) ? mealNow() : r.meals[0]) };
   sheet('Añadir a un día', html`${dayMealPicker(st.date, st.meal)}
     <button class="btn" id="ok">${addCta(st, ' 1 ración')}</button>`, {
     onMount: ({ el, close }) => {
