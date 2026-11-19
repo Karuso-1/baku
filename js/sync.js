@@ -217,6 +217,19 @@ async function deserialize(value, ctx) {
   return value;
 }
 
+// ---------- Repintar al bajar cambios de otro móvil ----------
+// Solo en pantallas de consulta y si no estás escribiendo ni con una hoja abierta:
+// repintar a mitad de una búsqueda o un formulario borraba lo que estabas escribiendo.
+const LIVE = /^\/(hoy|progreso|menus|despensa(\/alimentos|\/comedor)?|compra)$/;
+function refresh() {
+  const path = (location.hash.slice(1) || '/').split('?')[0];
+  const a = document.activeElement;
+  const busy = document.querySelector('.sheet-wrap') || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))
+    || [...document.querySelectorAll('#app input[type=search]')].some((i) => i.value);
+  if (!window.__route || !LIVE.test(path) || busy) return; // al cambiar de pantalla ya se leen los datos al día
+  window.__route();
+}
+
 // ---------- Subir y bajar ----------
 let running = null;
 export function syncNow() {
@@ -232,12 +245,12 @@ async function doSync() {
   if (!key) return; // falta escribir la clave de recuperación en este móvil
   setStatus('syncing');
   try {
-    const ctx = { sb, key, uid: session.user.id, state: await getState() };
+    const ctx = { sb, key, uid: session.user.id, state: await getState(), pushed: new Set() };
     await push(ctx);
     const changed = await pull(ctx);
     await setState({ blobs: ctx.state.blobs, cursor: ctx.state.cursor, last: Date.now() });
     setStatus('ok');
-    if (changed && window.__route) window.__route();
+    if (changed) refresh();
   } catch (e) {
     console.warn('sync', e);
     setStatus('error');
@@ -256,6 +269,7 @@ async function push(ctx) {
     }
     const { error } = await ctx.sb.from('records').upsert(rows, { onConflict: 'user_id,store,key' });
     if (error) throw error;
+    for (const r of rows) ctx.pushed.add(`${r.store}|${r.key}`);
     // Solo se quita de la cola si no ha vuelto a cambiar mientras subía
     for (const item of batch) {
       const now = await db.get('outbox', item.id);
@@ -275,6 +289,7 @@ async function pull(ctx) {
     for (const r of data) {
       ctx.state.cursor = r.updated_at;
       if (pendingIds.has(`${r.store}|${r.key}`)) continue; // lo de este móvil manda, se subirá luego
+      if (ctx.pushed.has(`${r.store}|${r.key}`)) continue; // es lo que este móvil acaba de subir: ya lo tiene
       if (r.store === 'kv' ? !SYNCED_KV.includes(r.key) : !SYNCED.includes(r.store)) continue;
       if (r.deleted) await db.delRaw(r.store, r.key);
       else {

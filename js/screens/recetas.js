@@ -1,6 +1,7 @@
 // Recetas: crear, editar y ver.
 import { html, icon, sheet, $, $$, toast, esc, pickImage, resizeImage, blobUrl } from '../ui.js';
 import { fmt, todayISO } from '../plan.js';
+import { getAddCtx, dayName, dayMealPicker, bindDayMealPicker, addCta } from '../dia.js';
 import { MEALS, MEAL_NAME, maps, recipeGet, recipePut, recipeDel, recipeServing, foodNutr, uid, dayGet, dayPut, addDays, parse, searchSort } from '../store.js';
 import { dietCard, recipeTags } from '../diet.js';
 import { foodAmountSheet } from './menus.js';
@@ -151,22 +152,19 @@ export async function recetaDetalle(app, profile, id) {
 }
 
 function addToDay(r) {
-  const today = todayISO();
-  const dates = Array.from({ length: 8 }, (_, i) => addDays(today, i));
-  let date = today;
-  let meal = r.meals?.[0] || 'comida';
-  sheet('Añadir a un día', html`<div class="hscroll" style="margin:0 -20px;padding:0 20px">${dates.map((d, i) => `<button class="chip-s" data-d="${d}" aria-pressed="${d === date}">${i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : `${WD[parse(d).getDay()]} ${parse(d).getDate()}`}</button>`).join('')}</div>
-    <div class="hscroll" style="margin:0 -20px;padding:0 20px">${MEALS.map(([k, l]) => `<button class="chip-s" data-m="${k}" aria-pressed="${k === meal}">${l}</button>`).join('')}</div>
-    <button class="btn" id="ok">Añadir 1 ración</button>`, {
+  // Desde hace 3 días: para apuntar lo que se te olvidó. Por defecto, el día de donde vienes.
+  const ctx = getAddCtx();
+  const st = { date: ctx?.date || todayISO(), meal: ctx?.meal || r.meals?.[0] || 'comida' };
+  sheet('Añadir a un día', html`${dayMealPicker(st.date, st.meal)}
+    <button class="btn" id="ok">${addCta(st, ' 1 ración')}</button>`, {
     onMount: ({ el, close }) => {
-      $$('[data-d]', el).forEach((b) => b.addEventListener('click', () => { date = b.dataset.d; $$('[data-d]', el).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
-      $$('[data-m]', el).forEach((b) => b.addEventListener('click', () => { meal = b.dataset.m; $$('[data-m]', el).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
+      bindDayMealPicker(el, st, () => { $('#ok', el).textContent = addCta(st, ' 1 ración'); });
       $('#ok', el).addEventListener('click', async () => {
-        const day = await dayGet(date);
-        day.meals[meal].push({ kind: 'recipe', id: r.id, servings: 1 });
+        const day = await dayGet(st.date);
+        day.meals[st.meal].push({ kind: 'recipe', id: r.id, servings: 1 });
         await dayPut(day);
         close();
-        toast(`Añadido a ${MEAL_NAME[meal].toLowerCase()}`);
+        toast(`Añadido a ${dayName(st.date)} · ${MEAL_NAME[st.meal].toLowerCase()}`);
       });
     },
   });

@@ -18,6 +18,7 @@ import { avisos } from './screens/avisos.js';
 import { compra } from './screens/compra.js';
 import { privacidad } from './screens/privacidad.js';
 import { startAvisos } from './avisos.js';
+import { clearAddCtx } from './dia.js';
 const TIP_FOR = { '/hoy': 'hoy', '/menus': 'menus', '/despensa': 'despensa', '/despensa/alimentos': 'alimentos', '/progreso': 'progreso' };
 
 const app = document.getElementById('app');
@@ -76,6 +77,8 @@ async function route() {
     await saveProfile(profile);
     if (profile.plan.protein !== before) setTimeout(() => toast(`Proteína: ${before} → ${profile.plan.protein} g al día, ahora con tu peso objetivo`), 900);
   }
+  // El día de «Añadir plato» solo se recuerda mientras sigues buscando qué añadir
+  if (!/^\/(anadir|despensa(\/alimentos|\/comedor)?|alimento\/.+|receta\/.+|escaner|llenar|comedor\/menu)$/.test(path)) clearAddCtx();
   const ticket = ++rendering;
   app.removeAttribute('style');
   document.body.style.overflow = '';

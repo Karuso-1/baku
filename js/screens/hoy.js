@@ -149,7 +149,7 @@ export async function hoy(app, profile) {
     ${suppCard(settings, day, m)}
 
     ${anyMeal ? html`<section class="glass card" style="gap:0;padding:10px 14px 6px">
-      <div class="between" style="padding-bottom:4px"><h2 class="h2">Comidas de hoy</h2><a class="link" href="#/menus?fecha=${date}" style="font-size:12px">Ver el día</a></div>
+      <div class="between" style="padding-bottom:4px"><h2 class="h2">Comidas de hoy</h2><span class="row" style="gap:12px"><a class="link" href="#/menus?fecha=${addDays(date, -1)}" style="font-size:12px;color:var(--apagado)" aria-label="Ver o completar lo de ayer">Ayer</a><a class="link" href="#/menus?fecha=${date}" style="font-size:12px">Ver el día</a></span></div>
       ${MEALS.map(mealRow).join('')}</section>
     ${ideas}
     ${closeBlock(day)}`

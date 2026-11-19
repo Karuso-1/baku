@@ -8,13 +8,14 @@ import { db } from '../db.js';
 import { fillDay, swapMeal } from '../fill.js';
 import { CATEGORIES } from '../seed.js';
 import { mealNow } from './hoy.js';
+import { setAddCtx, dayName } from '../dia.js';
 import { cookInfo, toState, fromState, fmtFactor } from '../coccion.js';
 
 const WD = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const WL = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const MON = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const short = (s) => { const d = parse(s); return `${d.getDate()} ${MON[d.getMonth()]}`; };
-const macroLine = (t) => `P ${fmt(t.p)} · H ${fmt(t.h)} · G ${fmt(t.g)}`;
+const macroLine = (t) => `P ${fmt(t.p)} · H ${fmt(t.h)} · G ${fmt(t.g)} · F ${fmt(t.fi || 0, (t.fi || 0) < 10 && (t.fi || 0) % 1 ? 1 : 0)}`;
 
 export async function menus(app, profile, params) {
   app.className = '';
@@ -266,6 +267,7 @@ export async function anadir(app, profile, params) {
   const ret = params.get('volver') || `#/menus?fecha=${date}`;
   const valid = (e) => (e.kind === 'recipe' ? !!m.recipes[e.id] : m.foods[e.id] && !m.foods[e.id].hidden);
   let recents = (await recentEntries(meal, 12)).filter(valid).slice(0, 6);
+  setAddCtx(date, meal); // si sales a Buscar más, Escanear o una receta, sigue apuntando a este día
 
   // Aviso pequeño si algo no encaja con la dieta
   const warn = (tags) => (conflicts(tags, m.diet).length ? ` <span style="color:var(--oxido-claro)">· No encaja con tu dieta</span>` : '');
@@ -315,14 +317,14 @@ export async function anadir(app, profile, params) {
     day.meals[meal].push(entry);
     await dayPut(day);
     location.hash = ret;
-    setTimeout(() => toast(`Añadido a ${MEAL_NAME[meal].toLowerCase()}`), 250);
+    setTimeout(() => toast(`Añadido a ${date === todayISO() ? '' : dayName(date) + ' · '}${MEAL_NAME[meal].toLowerCase()}`), 250);
   };
   const addRecipe = (r) => recipeAmountSheet(r, m, `Añadir a ${MEAL_NAME[meal].toLowerCase()}`, (k) => commit({ kind: 'recipe', id: r.id, servings: k }));
   const addFood = (f) => foodAmountSheet(f, `Añadir a ${MEAL_NAME[meal].toLowerCase()}`, (g, alt) => commit({ kind: 'food', id: f.id, g, ...(alt ? { alt } : {}) }));
 
   app.innerHTML = html`<div class="screen">
     <div class="row" style="gap:12px"><button class="icon-btn glass flat" id="back" aria-label="Volver">${icon('back', 18, 2)}</button>
-      <span class="col"><h1 style="font-size:20px;font-weight:600">Añadir plato</h1><span class="muted small">${date === todayISO() ? 'Hoy' : WD[parse(date).getDay()] + ' ' + short(date)}</span></span></div>
+      <span class="col"><h1 style="font-size:20px;font-weight:600">Añadir plato</h1>${date === todayISO() ? '<span class="muted small">Hoy</span>' : `<span class="small" style="color:var(--crema);font-weight:600">${dayName(date) === 'ayer' ? 'Ayer, ' + WD[parse(date).getDay()].toLowerCase() : WD[parse(date).getDay()]} ${short(date)}</span>`}</span></div>
     <div class="hscroll">${MEALS.map(([k, l]) => `<button class="chip-s" data-meal="${k}" aria-pressed="${k === meal}">${l}</button>`).join('')}</div>
     <label class="search glass flat">${icon('search', 16, 2)}<input id="q" type="search" placeholder="Buscar" aria-label="Buscar"></label>
     <div class="seg glass flat" role="radiogroup" aria-label="Tipo" style="height:44px;grid-template-columns:repeat(3,minmax(0,1fr))"><button role="radio" data-tab="recetas" aria-checked="${tab === 'recetas'}">Recetas</button><button role="radio" data-tab="alimentos" aria-checked="${tab === 'alimentos'}">Alimentos</button><button role="radio" data-tab="comedor" aria-checked="${tab === 'comedor'}">Comedor</button></div>
@@ -331,7 +333,7 @@ export async function anadir(app, profile, params) {
   </div>`;
   $('#back', app).addEventListener('click', () => history.back());
   $('#q', app).addEventListener('input', (e) => { q = e.target.value.trim(); render(); });
-  $$('[data-meal]', app).forEach((b) => b.addEventListener('click', async () => { meal = b.dataset.meal; $$('[data-meal]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); recents = (await recentEntries(meal, 12)).filter(valid).slice(0, 6); render(); }));
+  $$('[data-meal]', app).forEach((b) => b.addEventListener('click', async () => { meal = b.dataset.meal; setAddCtx(date, meal); $$('[data-meal]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); recents = (await recentEntries(meal, 12)).filter(valid).slice(0, 6); render(); }));
   $$('[data-tab]', app).forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; sessionStorage.setItem('baku-anadir-tab', tab); $$('[data-tab]', app).forEach((x) => x.setAttribute('aria-checked', x === b)); render(); }));
   $$('[data-cat]', app).forEach((b) => b.addEventListener('click', () => { cat = b.dataset.cat; $$('[data-cat]', app).forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); }));
   render();
@@ -350,7 +352,7 @@ export function foodAmountSheet(f, cta, onOk, opts = {}) {
   const note = () => info ? (st === info.state
     ? `Los valores de este alimento son ${info.state === 'crudo' ? 'en crudo' : 'ya cocinado'}.`
     : `Lo paso a ${info.state === 'crudo' ? 'crudo' : 'cocinado'}: ${shown()} g ${st === 'cocinado' ? 'cocinado' : 'en crudo'} ≈ ${Math.round(base)} g ${info.state === 'crudo' ? 'en crudo' : 'cocinado'} (${info.factor >= 1 ? `al cocerse pesa unas ${fmtFactor(info.factor)} veces más` : `al cocinarse pierde agua y pesa un ${Math.round((1 - info.factor) * 100)} % menos`}).`) : '';
-  sheet(f.name, html`
+  sheet(f.name, html`${opts.top || ''}
     ${info ? `<div class="col" style="gap:6px"><span class="label">¿Cómo lo has pesado?</span>
       <div class="seg glass flat" role="radiogroup" aria-label="Cómo lo has pesado" style="height:42px">${['crudo', 'cocinado'].map((k) => `<button role="radio" data-st="${k}" aria-checked="${k === st}">${ST[k]}</button>`).join('')}</div>
       <span class="muted small" id="note" style="line-height:1.4">${note()}</span></div>` : ''}

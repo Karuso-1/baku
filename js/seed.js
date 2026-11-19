@@ -7,7 +7,7 @@
 //   Alérgenos (los 14 de la UE): gl gluten · cr crustáceos · hu huevo · pe pescado · ca cacahuete · so soja
 //   la leche · fc frutos de cáscara · ap apio · mo mostaza · se sésamo · su sulfitos · al altramuces · ml moluscos
 export const CATEGORIES = ['Proteínas', 'Legumbres', 'Hidratos', 'Verduras', 'Frutas', 'Lácteos', 'Grasas', 'Bebidas', 'Platos', 'Otros'];
-export const CATALOG_VERSION = 9;
+export const CATALOG_VERSION = 10;
 
 const f = (name, cat, kcal, p, h, g, portions = [], tags = '') => ({ name, cat, kcal, p, h, g, portions, tags: tags.split(' ').filter(Boolean) });
 const r = (name, g, def = false) => ({ name, g, default: def });

@@ -50,11 +50,12 @@ export async function ensureSeed() {
       const food = { id: uid(), ...f, fi: FIBRA[f.name] || 0, sat: SAT[f.name] ?? satEstimate(f), liked: false, hidden: false, source: 'baku' };
       await db.put('foods', food);
       byName[f.name] = food;
-    } else if (old.source === 'baku' && (!old.tags || old.fi === undefined || old.sat === undefined || old.top !== f.top || (f.cat === 'Platos' && old.cat !== 'Platos'))) {
+    } else if (old.source === 'baku' && (!old.tags || !old.fi && FIBRA[f.name] || old.sat === undefined || old.top !== f.top || (f.cat === 'Platos' && old.cat !== 'Platos'))) {
       // Alimentos de la biblioteca anterior: se añaden etiquetas (y los platos pasan a su apartado) sin tocar valores ni me gusta
       old.tags = old.tags || f.tags; old.top = !!f.top;
       if (f.cat === 'Platos') old.cat = 'Platos';
-      if (old.fi === undefined) old.fi = FIBRA[f.name] || 0;
+      // Sin fibra o con 0 g guardados de una versión anterior de la tabla: se completa con el dato de ahora
+      if (!old.fi) old.fi = FIBRA[f.name] || 0;
       if (old.sat === undefined) old.sat = SAT[f.name] ?? satEstimate(f);
       await db.put('foods', old);
     }
